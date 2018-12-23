@@ -1802,8 +1802,10 @@ Comparison is done with `eq'."
   (let ((size 0) (p undo-list))
     (while p
       (incf size undo-tree-cons-size)
-      (when (and (consp (car p)) (stringp (caar p)))
-        (incf size (string-bytes (caar p))))
+      (when (consp (car p))
+        (incf size undo-tree-cons-size)
+        (when (stringp (caar p))
+          (incf size (string-bytes (caar p)))))
       (setq p (cdr p)))
     size))
 
