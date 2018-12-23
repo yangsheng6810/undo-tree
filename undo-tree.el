@@ -1786,12 +1786,22 @@ Comparison is done with `eq'."
     ;; discard undo history if necessary
     (undo-tree-discard-history)))
 
+(defconst undo-tree-cons-size
+  ;; A dirty hack to learn how many bytes a cons takes. 8 bytes for a 32-bit
+  ;; emacs, and 16 bytes for a 64-bit emacs.
+  ;; It is not easy to get the actual size of cons. In C, you can get it with
+  ;; sizeof (struct Lisp_Cons), but in elisp, the only way I know of getting
+  ;; it is by calling (garbage-collect), and it will return the size of a cons
+  ;; with (cadar (garbage-collect)), see https://www.gnu.org/software/emacs/manual/html_node/elisp/Garbage-Collection.html
+  (if (= (ash 1 31) 0)
+      8
+    16))
 
 (defun undo-list-byte-size (undo-list)
   ;; Return size (in bytes) of UNDO-LIST
   (let ((size 0) (p undo-list))
     (while p
-      (incf size 8)  ; cons cells use up 8 bytes
+      (incf size undo-tree-cons-size)
       (when (and (consp (car p)) (stringp (caar p)))
         (incf size (string-bytes (caar p))))
       (setq p (cdr p)))
