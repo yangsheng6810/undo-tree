@@ -1965,6 +1965,10 @@ Comparison is done with `eq'."
 (defun undo-tree-discard-history ()
   "Discard undo history until we're within memory usage limits
 set by `undo-limit', `undo-strong-limit' and `undo-outer-limit'."
+  (when (> (undo-tree-size buffer-undo-tree) undo-limit)
+    ;; first remove GCd markers from current tree, in the hope that
+    ;; the size for buffer-undo-tree can get smaller
+    (undo-tree-clean-GCd-elts buffer-undo-tree))
 
   (when (> (undo-tree-size buffer-undo-tree) undo-limit)
     ;; if there are no branches off root, first node to discard is root;
