@@ -1682,9 +1682,33 @@ Comparison is done with `eq'."
                  (undo-list-GCd-marker-elt-p (cadr p))
 		 (null (gethash (car (cadr p))
 				(undo-tree-object-pool buffer-undo-tree))))
+        (message (format "come here, nice: %s" (cadr p)))
 	(setcdr p (cddr p)))
       (setq p (cdr p))))
   undo-list)
+
+(defun undo-tree-clean-GCd-elts (tree)
+  ;; Clear visualizer data below NODE.
+  (undo-tree-mapc
+   (lambda (node)
+     (when (undo-tree-node-undo node)
+       (message (format "temp before: %s" (undo-tree-node-undo node)))
+       (let ((temp (undo-list-clean-GCd-elts (undo-tree-node-undo node))))
+         (message (format "temp after: %s" temp))
+         (setf (undo-tree-node-undo node) temp)
+       ;; (setf (undo-tree-node-undo node)
+       ;;       (undo-list-clean-GCd-elts (undo-tree-node-undo node)))
+       ))
+     (when (undo-tree-node-redo node)
+       (message (format "temp before: %s" (undo-tree-node-redo node)))
+       (let ((temp (undo-list-clean-GCd-elts (undo-tree-node-redo node))))
+         (message (format "temp after: %s" temp))
+         (setf (undo-tree-node-redo node) temp)
+         ;; (setf (undo-tree-node-undo node)
+         ;;       (undo-list-clean-GCd-elts (undo-tree-node-undo node)))
+         ))
+     )
+   (undo-tree-root tree)))
 
 
 (defun undo-list-pop-changeset (&optional discard-pos)
@@ -3112,6 +3136,7 @@ without asking for confirmation."
       (when (or (not (file-exists-p filename))
 		overwrite
 		(yes-or-no-p (format "Overwrite \"%s\"? " filename)))
+        (undo-tree-clean-GCd-elts buffer-undo-tree)
 	(unwind-protect
 	    (progn
 	      ;; transform undo-tree into non-circular structure, and make
@@ -3195,7 +3220,8 @@ signaling an error if file is not found."
 	    (make-hash-table :test 'eq :weakness 'value))
       ;; restore circular undo-tree data structure
       (undo-tree-recircle tree)
-      (setq buffer-undo-tree tree))))
+      (setq buffer-undo-tree tree)
+      (undo-tree-clean-GCd-elts buffer-undo-tree))))
 
 
 
