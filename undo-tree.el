@@ -1691,6 +1691,27 @@ Comparison is done with `eq'."
       (setq p (cdr p))))
   undo-list)
 
+(defun undo-tree-calc-tree-size (node)
+  (let ((size 0))
+    (when node
+      (message (format "--- node %s" node size))
+      (incf size
+            (+ (let ((ttt (undo-list-byte-size (undo-tree-node-undo node))))
+                 (message (format "size of undo is %d" ttt))
+                 ttt)
+               (let ((ttt (undo-list-byte-size (undo-tree-node-redo node))))
+                 (message (format "size of redo is %d" ttt))
+                 ttt)
+               (let*  ((l1 (seq-map #'undo-tree-calc-tree-size
+                                    (undo-tree-node-next node)))
+                       (l2 (seq-reduce
+                             #'+ l1 0)))
+                 (message (format "seq-reduce of %s gets %s" l1 l2))
+                 l2))))
+    (message (format "node %s has size %d" node size))
+    size))
+
+
 (defun undo-tree-clean-GCd-elts (tree)
   ;; Clear visualizer data below NODE.
   (undo-tree-mapc
@@ -1828,6 +1849,7 @@ Comparison is done with `eq'."
 
 (defun undo-list-byte-size (undo-list)
   ;; Return size (in bytes) of UNDO-LIST
+  (message (format "calc size for undo-list %s" (prin1-to-string undo-list)))
   (let ((size 0) (p undo-list))
     (while p
       (incf size undo-tree-cons-size)
