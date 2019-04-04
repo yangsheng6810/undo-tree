@@ -760,9 +760,9 @@
 (require 'diff)
 
 (setq yang/debug nil)
-(defun yang/debug-message (ss)
+(defun yang/debug-message (FORMAT_STRING &rest ARGS)
   (when yang/debug
-    (message ss)))
+    (message FORMAT_STRING ARGS)))
 
 
 
