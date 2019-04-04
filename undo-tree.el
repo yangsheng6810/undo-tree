@@ -4528,6 +4528,7 @@ specifies `saved', and a negative prefix argument specifies
         (setq index (1+ index))
         (setq stack (append (undo-tree-node-next n) stack))))
     (message "Printing buffer-undo-tree")
+    (message "Current node is %d" (gethash current-node node-hash-pool))
     (message "Root is 0")
     (setq stack (list (undo-tree-root buffer-undo-tree)))
     (while stack
