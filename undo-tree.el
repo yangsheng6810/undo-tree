@@ -4511,6 +4511,36 @@ specifies `saved', and a negative prefix argument specifies
       (balance-windows)
       (shrink-window-if-larger-than-buffer win))))
 
+(defun undo-tree-print-undo-tree ()
+  "Print buffer-undo-tree nicely."
+  (let ((index 0)
+        (stack (list (undo-tree-root buffer-undo-tree)))
+        (current-node (undo-tree-current buffer-undo-tree))
+        (node-hash-pool (make-hash-table :test 'equal))
+        n)
+    (puthash nil -1 node-hash-pool)
+    ;; calculate hash
+    (while stack
+      (setq n (pop stack))
+      (when n
+        (puthash n index node-hash-pool)
+        (setq index (1+ index))
+        (setq stack (append (undo-tree-node-next n) stack))))
+    (message "Printing buffer-undo-tree")
+    (message "Root is 0")
+    (setq stack (list (undo-tree-root buffer-undo-tree)))
+    (while stack
+      (setq n (pop stack))
+      (message "node %d: prev: %d, next: (%s), branch: %d, undo: %s, redo: %s,"
+               (gethash n node-hash-pool)
+               (gethash (undo-tree-node-previous n) node-hash-pool)
+               (mapconcat (lambda (x)
+                            (number-to-string (gethash x node-hash-pool)))
+                          (undo-tree-node-next n) ",")
+               (undo-tree-node-branch n)
+               (undo-tree-node-undo n)
+               (undo-tree-node-redo n))
+      (setq stack (append (undo-tree-node-next n) stack)))))
 
 
 (provide 'undo-tree)
