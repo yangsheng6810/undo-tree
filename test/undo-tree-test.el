@@ -17,7 +17,7 @@
       ))
 
 (ert-deftest undo-tree-test/undo-tree-size ()
-  "Simple undo works for insertion and deletion"
+  "Simple undo-tree size tests"
   (with-temp-buffer
     (buffer-enable-undo)
     (undo-tree-mode 1)
@@ -36,4 +36,40 @@
     (should (equal (undo-tree-calc-tree-size (undo-tree-root buffer-undo-tree))
                    (undo-tree-size buffer-undo-tree)))
     ))
+
+(ert-deftest undo-tree-test/undo-tree-size-1 ()
+  "More undo-tree size tests"
+  (with-temp-buffer
+    (buffer-enable-undo)
+    (undo-tree-mode 1)
+    (undo-tree-test-setup)
+    (dotimes (_ 20)
+      (goto-char (point-min))
+      (replace-string "lorem" "dignissim-")
+      (undo-boundary)
+      (goto-char (point-min))
+      (replace-string "dignissim-" "lorem--")
+      (undo-boundary)
+      (goto-char (point-min))
+      (replace-string "lorem--" "dignissim---")
+      (undo-boundary)
+      (goto-char (point-min))
+      (replace-string "dignissim---" "lorem")
+      (undo-boundary))
+    (undo-list-transfer-to-tree)
+    ;; (should (string-equal "(nil undo-tree-canary)" (format "%s" buffer-undo-list)))
+    ;; (should (string-equal "t" "nil"))
+    (should (equal (undo-tree-calc-tree-size (undo-tree-root buffer-undo-tree))
+                   (undo-tree-size buffer-undo-tree)))
+    ;; (should (string-equal "t" "nil"))
+    (undo-tree-print-undo-tree)
+    (undo-tree-undo 60)
+    (should (equal (undo-tree-calc-tree-size (undo-tree-root buffer-undo-tree))
+                   (undo-tree-size buffer-undo-tree)))
+    (undo-tree-redo 40)
+    (should (equal (undo-tree-calc-tree-size (undo-tree-root buffer-undo-tree))
+                   (undo-tree-size buffer-undo-tree)))
+    ))
+
+;; TODO: add test for GCed undo-tree
 ;;; undo-tree-test.el ends here
