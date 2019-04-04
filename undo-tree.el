@@ -754,6 +754,8 @@
 
 ;;; Code:
 
+;; TODO: replace cl with cl-lib, and clean up
+;; maybe not now, according to https://www.emacswiki.org/emacs/CommonLispForEmacs
 (eval-when-compile (require 'cl))
 (require 'diff)
 
