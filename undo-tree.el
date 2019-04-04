@@ -1699,24 +1699,17 @@ Comparison is done with `eq'."
       (setq p (cdr p))))
   undo-list)
 
-(defun undo-tree-calc-tree-size (node)
-  (let ((size 0))
-    (when node
-      (yang/debug-message (format "--- node %s" node size))
-      (incf size
-            (+ (let ((ttt (undo-list-byte-size (undo-tree-node-undo node))))
-                 (yang/debug-message (format "size of undo is %d" ttt))
-                 ttt)
-               (let ((ttt (undo-list-byte-size (undo-tree-node-redo node))))
-                 (yang/debug-message (format "size of redo is %d" ttt))
-                 ttt)
-               (let*  ((l1 (seq-map #'undo-tree-calc-tree-size
-                                    (undo-tree-node-next node)))
-                       (l2 (seq-reduce
-                             #'+ l1 0)))
-                 (yang/debug-message (format "seq-reduce of %s gets %s" l1 l2))
-                 l2))))
-    (yang/debug-message (format "node %s has size %d" node size))
+(defun undo-tree-calc-tree-size (root)
+  (let ((stack (list root))
+        (size 0)
+        n)
+    (while stack
+      (setq n (pop stack))
+      (when n
+        (setq stack (append (undo-tree-node-next n) stack))
+        (incf size
+              (+ (undo-list-byte-size (undo-tree-node-undo n))
+                 (undo-list-byte-size (undo-tree-node-redo n))))))
     size))
 
 
