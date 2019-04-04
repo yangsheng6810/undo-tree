@@ -759,6 +759,12 @@
 (eval-when-compile (require 'cl))
 (require 'diff)
 
+(setq yang/debug nil)
+(defun yang/debug-message (ss)
+  (when yang/debug
+    (message ss)))
+
+
 
 
 ;;; =====================================================================
@@ -1686,7 +1692,7 @@ Comparison is done with `eq'."
                  (undo-list-GCd-marker-elt-p (cadr p))
 		 (null (gethash (car (cadr p))
 				(undo-tree-object-pool buffer-undo-tree))))
-        (message (format "marker %s is removed" (cadr p)))
+        (yang/debug-message (format "marker %s is removed" (cadr p)))
         (decf (undo-tree-size buffer-undo-tree)
               (* 2 undo-tree-cons-size))
 	(setcdr p (cddr p)))
@@ -1696,21 +1702,21 @@ Comparison is done with `eq'."
 (defun undo-tree-calc-tree-size (node)
   (let ((size 0))
     (when node
-      (message (format "--- node %s" node size))
+      (yang/debug-message (format "--- node %s" node size))
       (incf size
             (+ (let ((ttt (undo-list-byte-size (undo-tree-node-undo node))))
-                 (message (format "size of undo is %d" ttt))
+                 (yang/debug-message (format "size of undo is %d" ttt))
                  ttt)
                (let ((ttt (undo-list-byte-size (undo-tree-node-redo node))))
-                 (message (format "size of redo is %d" ttt))
+                 (yang/debug-message (format "size of redo is %d" ttt))
                  ttt)
                (let*  ((l1 (seq-map #'undo-tree-calc-tree-size
                                     (undo-tree-node-next node)))
                        (l2 (seq-reduce
                              #'+ l1 0)))
-                 (message (format "seq-reduce of %s gets %s" l1 l2))
+                 (yang/debug-message (format "seq-reduce of %s gets %s" l1 l2))
                  l2))))
-    (message (format "node %s has size %d" node size))
+    (yang/debug-message (format "node %s has size %d" node size))
     size))
 
 
@@ -1719,17 +1725,17 @@ Comparison is done with `eq'."
   (undo-tree-mapc
    (lambda (node)
      (when (undo-tree-node-undo node)
-       (message (format "temp before: %s" (undo-tree-node-undo node)))
+       (yang/debug-message (format "temp before: %s" (undo-tree-node-undo node)))
        (let ((temp (undo-list-clean-GCd-elts (undo-tree-node-undo node))))
-         (message (format "temp after: %s" temp))
+         (yang/debug-message (format "temp after: %s" temp))
          (setf (undo-tree-node-undo node) temp)
        ;; (setf (undo-tree-node-undo node)
        ;;       (undo-list-clean-GCd-elts (undo-tree-node-undo node)))
        ))
      (when (undo-tree-node-redo node)
-       (message (format "temp before: %s" (undo-tree-node-redo node)))
+       (yang/debug-message (format "temp before: %s" (undo-tree-node-redo node)))
        (let ((temp (undo-list-clean-GCd-elts (undo-tree-node-redo node))))
-         (message (format "temp after: %s" temp))
+         (yang/debug-message (format "temp after: %s" temp))
          (setf (undo-tree-node-redo node) temp)
          ;; (setf (undo-tree-node-undo node)
          ;;       (undo-list-clean-GCd-elts (undo-tree-node-undo node)))
@@ -1851,7 +1857,7 @@ Comparison is done with `eq'."
 
 (defun undo-list-byte-size (undo-list)
   ;; Return size (in bytes) of UNDO-LIST
-  (message (format "calc size for undo-list %s" (prin1-to-string undo-list)))
+  (yang/debug-message (format "calc size for undo-list %s" (prin1-to-string undo-list)))
   (let ((size 0) (p undo-list))
     (while p
       (incf size undo-tree-cons-size)
