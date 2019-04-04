@@ -759,9 +759,10 @@
 (eval-when-compile (require 'cl))
 (require 'diff)
 
-(setq yang/debug nil)
-(defun yang/debug-message (FORMAT_STRING &rest ARGS)
-  (when yang/debug
+(defvar undo-tree--debug nil
+  "Print debug information when set to `t'")
+(defun undo-tree/debug-message (FORMAT_STRING &rest ARGS)
+  (when undo-tree--debug
     (message FORMAT_STRING ARGS)))
 
 
@@ -1692,7 +1693,7 @@ Comparison is done with `eq'."
                  (undo-list-GCd-marker-elt-p (cadr p))
 		 (null (gethash (car (cadr p))
 				(undo-tree-object-pool buffer-undo-tree))))
-        (yang/debug-message (format "marker %s is removed" (cadr p)))
+        (undo-tree/debug-message (format "marker %s is removed" (cadr p)))
         (decf (undo-tree-size buffer-undo-tree)
               (* 2 undo-tree-cons-size))
 	(setcdr p (cddr p)))
@@ -1718,17 +1719,17 @@ Comparison is done with `eq'."
   (undo-tree-mapc
    (lambda (node)
      (when (undo-tree-node-undo node)
-       (yang/debug-message (format "temp before: %s" (undo-tree-node-undo node)))
+       (undo-tree/debug-message (format "temp before: %s" (undo-tree-node-undo node)))
        (let ((temp (undo-list-clean-GCd-elts (undo-tree-node-undo node))))
-         (yang/debug-message (format "temp after: %s" temp))
+         (undo-tree/debug-message (format "temp after: %s" temp))
          (setf (undo-tree-node-undo node) temp)
        ;; (setf (undo-tree-node-undo node)
        ;;       (undo-list-clean-GCd-elts (undo-tree-node-undo node)))
        ))
      (when (undo-tree-node-redo node)
-       (yang/debug-message (format "temp before: %s" (undo-tree-node-redo node)))
+       (undo-tree/debug-message (format "temp before: %s" (undo-tree-node-redo node)))
        (let ((temp (undo-list-clean-GCd-elts (undo-tree-node-redo node))))
-         (yang/debug-message (format "temp after: %s" temp))
+         (undo-tree/debug-message (format "temp after: %s" temp))
          (setf (undo-tree-node-redo node) temp)
          ;; (setf (undo-tree-node-undo node)
          ;;       (undo-list-clean-GCd-elts (undo-tree-node-undo node)))
@@ -1850,7 +1851,7 @@ Comparison is done with `eq'."
 
 (defun undo-list-byte-size (undo-list)
   ;; Return size (in bytes) of UNDO-LIST
-  (yang/debug-message (format "calc size for undo-list %s" (prin1-to-string undo-list)))
+  (undo-tree/debug-message (format "calc size for undo-list %s" (prin1-to-string undo-list)))
   (let ((size 0) (p undo-list))
     (while p
       (incf size undo-tree-cons-size)
