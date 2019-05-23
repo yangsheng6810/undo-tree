@@ -1688,7 +1688,7 @@ Comparison is done with `eq'."
     elt))
 
 
-(defun undo-list-clean-GCd-elts (undo-list)
+(defun undo-tree-list-clean-GCd-elts (undo-list)
   ;; Remove object id's from UNDO-LIST that refer to elements that have been
   ;; garbage-collected. UNDO-LIST is modified by side-effect.
   (undo-tree/debug-message 20 "undo-list size is %d before cleaning" (undo-tree-list-byte-size undo-list))
@@ -1735,19 +1735,19 @@ Comparison is done with `eq'."
    (lambda (node)
      (when (undo-tree-node-undo node)
        (undo-tree/debug-message 10 "temp before: %S" (undo-tree-node-undo node))
-       (let ((temp (undo-list-clean-GCd-elts (undo-tree-node-undo node))))
+       (let ((temp (undo-tree-list-clean-GCd-elts (undo-tree-node-undo node))))
          (undo-tree/debug-message 10 "temp after: %S" temp)
          (setf (undo-tree-node-undo node) temp)
        ;; (setf (undo-tree-node-undo node)
-       ;;       (undo-list-clean-GCd-elts (undo-tree-node-undo node)))
+       ;;       (undo-tree-list-clean-GCd-elts (undo-tree-node-undo node)))
        ))
      (when (undo-tree-node-redo node)
        (undo-tree/debug-message 10 "temp before: %S" (undo-tree-node-redo node))
-       (let ((temp (undo-list-clean-GCd-elts (undo-tree-node-redo node))))
+       (let ((temp (undo-tree-list-clean-GCd-elts (undo-tree-node-redo node))))
          (undo-tree/debug-message 10 "temp after: %S" temp)
          (setf (undo-tree-node-redo node) temp)
          ;; (setf (undo-tree-node-undo node)
-         ;;       (undo-list-clean-GCd-elts (undo-tree-node-undo node)))
+         ;;       (undo-tree-list-clean-GCd-elts (undo-tree-node-undo node)))
          ))
      )
    (undo-tree-root tree)))
@@ -2868,7 +2868,7 @@ changes within the current region."
       (decf (undo-tree-size buffer-undo-tree)
 	    (undo-tree-list-byte-size (undo-tree-node-undo current)))
       (setf (undo-tree-node-undo current)
-	    (undo-list-clean-GCd-elts (undo-tree-node-undo current)))
+	    (undo-tree-list-clean-GCd-elts (undo-tree-node-undo current)))
       (incf (undo-tree-size buffer-undo-tree)
 	    (undo-tree-list-byte-size (undo-tree-node-undo current)))
       ;; undo one record from undo tree
@@ -2887,7 +2887,7 @@ changes within the current region."
 	    (decf (undo-tree-size buffer-undo-tree)
 		  (undo-tree-list-byte-size (undo-tree-node-redo current)))
 	    (setf (undo-tree-node-redo current)
-		  (undo-list-clean-GCd-elts (undo-tree-node-redo current)))
+		  (undo-tree-list-clean-GCd-elts (undo-tree-node-redo current)))
 	    (incf (undo-tree-size buffer-undo-tree)
 		  (undo-tree-list-byte-size (undo-tree-node-redo current))))
 	;; otherwise, record redo entries that `primitive-undo' has added to
@@ -2983,7 +2983,7 @@ changes within the current region."
       (decf (undo-tree-size buffer-undo-tree)
 	    (undo-tree-list-byte-size (undo-tree-node-redo current)))
       (setf (undo-tree-node-redo current)
-	    (undo-list-clean-GCd-elts (undo-tree-node-redo current)))
+	    (undo-tree-list-clean-GCd-elts (undo-tree-node-redo current)))
       (incf (undo-tree-size buffer-undo-tree)
 	    (undo-tree-list-byte-size (undo-tree-node-redo current)))
       ;; redo one record from undo tree
@@ -3004,7 +3004,7 @@ changes within the current region."
 	    (decf (undo-tree-size buffer-undo-tree)
 		  (undo-tree-list-byte-size (undo-tree-node-undo current)))
 	    (setf (undo-tree-node-undo current)
-		  (undo-list-clean-GCd-elts (undo-tree-node-undo current)))
+		  (undo-tree-list-clean-GCd-elts (undo-tree-node-undo current)))
 	    (incf (undo-tree-size buffer-undo-tree)
 		  (undo-tree-list-byte-size (undo-tree-node-undo current))))
 	;; otherwise, record undo entries that `primitive-undo' has added to
