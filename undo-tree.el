@@ -759,13 +759,23 @@
 (eval-when-compile (require 'cl))
 (require 'diff)
 
+;; default is nil
+;; nil:      no debug info
+;; t:        all debug info, hard to use in production
+;; a number: debug messages with debug-level larger than
+;;           undo-tree--debug are outputted
 (defvar undo-tree--debug nil
-  "Print debug information when set to `t'")
-(defun undo-tree/debug-message (FORMAT_STRING &rest ARGS)
+  "Print debug information when set to larger than 0")
+(put 'undo-tree--debug 'permanent-local t)
+(make-variable-buffer-local 'undo-tree--debug)
+
+
+(defun undo-tree/debug-message (debug-level FORMAT_STRING &rest ARGS)
   (when undo-tree--debug
-    (message FORMAT_STRING ARGS)))
-
-
+    (cond ((numberp undo-tree--debug)
+           (when (>= debug-level undo-tree--debug)
+             (apply #'message FORMAT_STRING ARGS)))
+          (t (apply #'message FORMAT_STRING ARGS)))))
 
 
 ;;; =====================================================================
@@ -1681,27 +1691,32 @@ Comparison is done with `eq'."
 (defun undo-list-clean-GCd-elts (undo-list)
   ;; Remove object id's from UNDO-LIST that refer to elements that have been
   ;; garbage-collected. UNDO-LIST is modified by side-effect.
+  (undo-tree/debug-message 20 "undo-list size is %d before cleaning" (undo-list-byte-size undo-list))
+  (undo-tree/debug-message 20 "undo-tree size is %d before cleaning" (undo-tree-size buffer-undo-tree))
   (while (undo-list-GCd-marker-elt-p (car undo-list))
     (unless (gethash (caar undo-list)
 		     (undo-tree-object-pool buffer-undo-tree))
+      (undo-tree/debug-message 20 "marker %S is removed" (caar undo-list))
       (decf (undo-tree-size buffer-undo-tree)
             (* 2 undo-tree-cons-size))
       (setq undo-list (cdr undo-list))))
-  (let ((p undo-list))
+  (let* ((p undo-list))
     (while (cdr p)
       (while (and (cadr p)
-                 (undo-list-GCd-marker-elt-p (cadr p))
-		 (null (gethash (car (cadr p))
-				(undo-tree-object-pool buffer-undo-tree))))
-        (undo-tree/debug-message (format "marker %s is removed" (cadr p)))
+                  (undo-list-GCd-marker-elt-p (cadr p))
+		  (null (gethash (car (cadr p))
+				 (undo-tree-object-pool buffer-undo-tree))))
+        (undo-tree/debug-message 20 "marker %S is removed" (cadr p))
         (decf (undo-tree-size buffer-undo-tree)
               (* 2 undo-tree-cons-size))
 	(setcdr p (cddr p)))
       (setq p (cdr p))))
+  (undo-tree/debug-message 20 "undo-list size is %d after cleaning" (undo-list-byte-size undo-list))
+  (undo-tree/debug-message 20 "undo-tree size is %d after cleaning" (undo-tree-size buffer-undo-tree))
   undo-list)
 
-(defun undo-tree-calc-tree-size (root)
-  (let ((stack (list root))
+(defun undo-tree-calc-tree-size (undo-tree)
+  (let ((stack (list (undo-tree-root undo-tree)))
         (size 0)
         n)
     (while stack
@@ -1719,17 +1734,17 @@ Comparison is done with `eq'."
   (undo-tree-mapc
    (lambda (node)
      (when (undo-tree-node-undo node)
-       (undo-tree/debug-message (format "temp before: %s" (undo-tree-node-undo node)))
+       (undo-tree/debug-message 10 "temp before: %S" (undo-tree-node-undo node))
        (let ((temp (undo-list-clean-GCd-elts (undo-tree-node-undo node))))
-         (undo-tree/debug-message (format "temp after: %s" temp))
+         (undo-tree/debug-message 10 "temp after: %S" temp)
          (setf (undo-tree-node-undo node) temp)
        ;; (setf (undo-tree-node-undo node)
        ;;       (undo-list-clean-GCd-elts (undo-tree-node-undo node)))
        ))
      (when (undo-tree-node-redo node)
-       (undo-tree/debug-message (format "temp before: %s" (undo-tree-node-redo node)))
+       (undo-tree/debug-message 10 "temp before: %S" (undo-tree-node-redo node))
        (let ((temp (undo-list-clean-GCd-elts (undo-tree-node-redo node))))
-         (undo-tree/debug-message (format "temp after: %s" temp))
+         (undo-tree/debug-message 10 "temp after: %S" temp)
          (setf (undo-tree-node-redo node) temp)
          ;; (setf (undo-tree-node-undo node)
          ;;       (undo-list-clean-GCd-elts (undo-tree-node-undo node)))
@@ -1784,7 +1799,6 @@ Comparison is done with `eq'."
 	  (setcdr p (list (cdr p)))
 	  (setq p (cdr p))))
       copy)))
-
 
 
 (defun undo-list-transfer-to-tree ()
@@ -1851,7 +1865,7 @@ Comparison is done with `eq'."
 
 (defun undo-list-byte-size (undo-list)
   ;; Return size (in bytes) of UNDO-LIST
-  (undo-tree/debug-message (format "calc size for undo-list %s" (prin1-to-string undo-list)))
+  (undo-tree/debug-message 10 "calc size for undo-list %S" (prin1-to-string undo-list))
   (let ((size 0) (p undo-list))
     (while p
       (incf size undo-tree-cons-size)
@@ -2833,9 +2847,13 @@ changes within the current region."
     ;; `buffer-undo-tree'
     (undo-list-transfer-to-tree)
 
+    (undo-tree/check-size)
+
     (dotimes (_ (or (and (numberp arg) (prefix-numeric-value arg)) 1))
       ;; check if at top of undo tree
       (unless (undo-tree-node-previous (undo-tree-current buffer-undo-tree))
+        (when undo-tree--debug
+          (undo-tree/dump-for-debug))
 	(user-error "No further undo information"))
 
       ;; if region is active, or a non-numeric prefix argument was supplied,
@@ -2945,6 +2963,8 @@ changes within the current region."
     (dotimes (_ (or (and (numberp arg) (prefix-numeric-value arg)) 1))
       ;; check if at bottom of undo tree
       (when (null (undo-tree-node-next (undo-tree-current buffer-undo-tree)))
+        (when undo-tree--debug
+          (undo-tree/dump-for-debug))
 	(user-error "No further redo information"))
 
       ;; if region is active, or a non-numeric prefix argument was supplied,
@@ -3301,7 +3321,7 @@ signaling an error if file is not found."
   (when (eq buffer-undo-list t)
     (user-error "No undo information in this buffer"))
   ;; transfer entries accumulated in `buffer-undo-list' to `buffer-undo-tree'
-  (undo-list-transfer-to-tree)
+  (undo-tree-transfer-list-to-tree)
   ;; add hook to kill visualizer buffer if original buffer is changed
   (add-hook 'before-change-functions 'undo-tree-kill-visualizer nil t)
   ;; prepare *undo-tree* buffer, then draw tree in it
@@ -4512,11 +4532,27 @@ specifies `saved', and a negative prefix argument specifies
       (balance-windows)
       (shrink-window-if-larger-than-buffer win))))
 
-(defun undo-tree-print-undo-tree ()
+(defun undo-tree/dump-for-debug ()
+  "Dump current information for undo-tree"
+  (interactive)
+  (let* ((undo-tree-str (undo-tree/to-string))
+         ;; (undo-list-str (prin1 buffer-undo-list))
+         (temp-file-name (make-temp-file "undo-tree-debug")))
+    (message "Temp file is %s" temp-file-name)
+    (with-temp-file
+        temp-file-name
+      (insert "Undo-tree is:\n")
+      (insert undo-tree-str)
+      ;; (insert "Undo-list is:\n")
+      ;; (insert undo-list-str)
+      )))
+
+(defun undo-tree/to-string ()
   "Print buffer-undo-tree nicely."
-  (let ((index 0)
-        (stack (list (undo-tree-root buffer-undo-tree)))
-        (current-node (undo-tree-current buffer-undo-tree))
+  (let* ((index 0)
+        (undo-tree buffer-undo-tree)
+        (stack (list (undo-tree-root undo-tree)))
+        (current-node (undo-tree-current undo-tree))
         (node-hash-pool (make-hash-table :test 'equal))
         n)
     (puthash nil -1 node-hash-pool)
@@ -4527,23 +4563,51 @@ specifies `saved', and a negative prefix argument specifies
         (puthash n index node-hash-pool)
         (setq index (1+ index))
         (setq stack (append (undo-tree-node-next n) stack))))
-    (message "Printing buffer-undo-tree")
-    (message "Current node is %d" (gethash current-node node-hash-pool))
-    (message "Root is 0")
-    (setq stack (list (undo-tree-root buffer-undo-tree)))
-    (while stack
-      (setq n (pop stack))
-      (message "node %d: prev: %d, next: (%s), branch: %d, undo: %s, redo: %s,"
-               (gethash n node-hash-pool)
-               (gethash (undo-tree-node-previous n) node-hash-pool)
-               (mapconcat (lambda (x)
-                            (number-to-string (gethash x node-hash-pool)))
-                          (undo-tree-node-next n) ",")
-               (undo-tree-node-branch n)
-               (undo-tree-node-undo n)
-               (undo-tree-node-redo n))
-      (setq stack (append (undo-tree-node-next n) stack)))))
 
+    (with-temp-buffer
+      (insert "Printing buffer-undo-tree\n")
+      (insert (format "Current node is %d\n" (gethash current-node node-hash-pool)))
+      (insert (format "Undo-tree size is %d, real size is %d\n"
+                      (undo-tree-size undo-tree)
+                      (undo-tree-calc-tree-size undo-tree)))
+      (insert "Root is 0\n")
+      (setq stack (list (undo-tree-root undo-tree)))
+      (while stack
+        (setq n (pop stack))
+        (insert
+         (format "node %d: prev: %d, next: (%s), branch: %d, undo: %s, redo: %s,\n"
+                 (gethash n node-hash-pool)
+                 (gethash (undo-tree-node-previous n) node-hash-pool)
+                 (mapconcat (lambda (x)
+                              (number-to-string (gethash x node-hash-pool)))
+                            (undo-tree-node-next n) ",")
+                 (undo-tree-node-branch n)
+                 (undo-tree/undo-to-string (undo-tree-node-undo n))
+                 (undo-tree/undo-to-string (undo-tree-node-redo n))))
+        (setq stack (append (undo-tree-node-next n) stack)))
+      (buffer-string))))
+
+(defun undo-tree/undo-to-string (undo)
+  (with-temp-buffer
+    (if (null undo)
+        (insert "()")
+      (insert "(\n")
+      (let ((stack undo)
+            n)
+        (while stack
+          (setq n (pop stack))
+          (insert (format "          %S\n" n))))
+      (insert ")"))
+    (buffer-string)))
+
+(defun undo-tree/check-size ()
+  (when undo-tree--debug
+    (let* ((size (undo-tree-calc-tree-size buffer-undo-tree))
+           (size-1 (undo-tree-size buffer-undo-tree)))
+      (when (not (equal size size-1))
+        (undo-tree/debug-message 20 "Undo-tree size not match, real size is %d,\
+while in record, it is %d" size size-1)
+        (undo-tree/dump-for-debug)))))
 
 (provide 'undo-tree)
 
