@@ -1,4 +1,5 @@
 ;;; test-helper.el --- Helpers for undo-tree-test.el
+(require 'dash)
 
 (defun undo-tree-test-setup ()
   "Insert initial text for testing."
@@ -15,5 +16,33 @@ Pellentesque dapibus suscipit ligula.  Donec posuere augue in quam.  Etiam vel t
 
 ")
   (undo-boundary))
+
+(defun undo-tree-setup-buffer-and-undo (buf-string undo-list)
+  (setq buffer-undo-list t)
+  (erase-buffer)
+  (insert buf-string)
+  (setq buffer-undo-list
+        (-clone undo-list))
+  (undo-boundary))
+
+
+(defun undo-tree-verify-undo (l)
+  (let ((buf-string (buffer-string))
+        (buf-undo-list (-clone buffer-undo-list)))
+    (mapc (lambda (ele)
+            (let ((n (car ele))
+                  (str (cadr ele)))
+              (message "n is %d" n)
+              (undo-tree-setup-buffer-and-undo
+               buf-string buf-undo-list)
+              (undo n)
+              (should (string-equal (buffer-string) str))))
+          l)
+    (undo-tree-setup-buffer-and-undo
+     buf-string buf-undo-list)))
+
+(defun undo-tree-verify-size ()
+  (should (equal (undo-tree-calc-tree-size buffer-undo-tree)
+                 (undo-tree-size buffer-undo-tree))))
 
 ;;; test-helper.el ends here

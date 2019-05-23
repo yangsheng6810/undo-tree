@@ -7,4 +7,5 @@
 
 (development
  (depends-on "f")
- (depends-on "ert-runner"))
+ (depends-on "ert-runner")
+ (depends-on "dash"))
