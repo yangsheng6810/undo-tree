@@ -1801,10 +1801,10 @@ Comparison is done with `eq'."
       copy)))
 
 
-(defun undo-list-transfer-to-tree ()
+(defun undo-tree-transfer-list-to-tree ()
   ;; Transfer entries accumulated in `buffer-undo-list' to `buffer-undo-tree'.
 
-  ;; `undo-list-transfer-to-tree' should never be called when undo is disabled
+  ;; `undo-tree-transfer-list-to-tree' should never be called when undo is disabled
   ;; (i.e. `buffer-undo-tree' is t)
   (assert (not (eq buffer-undo-tree t)))
 
@@ -1881,7 +1881,7 @@ Comparison is done with `eq'."
 (defun undo-list-rebuild-from-tree ()
   "Rebuild `buffer-undo-list' from information in `buffer-undo-tree'."
   (unless (eq buffer-undo-list t)
-    (undo-list-transfer-to-tree)
+    (undo-tree-transfer-list-to-tree)
     (setq buffer-undo-list nil)
     (when buffer-undo-tree
       ;; stack is a list of a list of nodes, to be able to handle
@@ -2845,7 +2845,7 @@ changes within the current region."
 	pos current)
     ;; transfer entries accumulated in `buffer-undo-list' to
     ;; `buffer-undo-tree'
-    (undo-list-transfer-to-tree)
+    (undo-tree-transfer-list-to-tree)
 
     (undo-tree/check-size)
 
@@ -2958,7 +2958,7 @@ changes within the current region."
 	pos current)
     ;; transfer entries accumulated in `buffer-undo-list' to
     ;; `buffer-undo-tree'
-    (undo-list-transfer-to-tree)
+    (undo-tree-transfer-list-to-tree)
 
     (dotimes (_ (or (and (numberp arg) (prefix-numeric-value arg)) 1))
       ;; check if at bottom of undo tree
@@ -3042,7 +3042,7 @@ This will affect which branch to descend when *redoing* changes
 using `undo-tree-redo'."
   (interactive (list (or (and prefix-arg (prefix-numeric-value prefix-arg))
                          (and (not (eq buffer-undo-list t))
-			      (or (undo-list-transfer-to-tree) t)
+			      (or (undo-tree-transfer-list-to-tree) t)
 			      (let ((b (undo-tree-node-branch
 					(undo-tree-current
 					 buffer-undo-tree))))
@@ -3066,7 +3066,7 @@ using `undo-tree-redo'."
   (when (or (< branch 0) (> branch (1- (undo-tree-num-branches))))
     (user-error "Invalid branch number"))
   ;; transfer entries accumulated in `buffer-undo-list' to `buffer-undo-tree'
-  (undo-list-transfer-to-tree)
+  (undo-tree-transfer-list-to-tree)
   ;; switch branch
   (setf (undo-tree-node-branch (undo-tree-current buffer-undo-tree))
 	branch)
@@ -3119,7 +3119,7 @@ Argument is a character, naming the register."
   (when (eq buffer-undo-list t)
     (user-error "No undo information in this buffer"))
   ;; transfer entries accumulated in `buffer-undo-list' to `buffer-undo-tree'
-  (undo-list-transfer-to-tree)
+  (undo-tree-transfer-list-to-tree)
   ;; save current node to REGISTER
   (set-register
    register (registerv-make
@@ -3150,7 +3150,7 @@ Argument is a character, naming the register."
      ((not (eq (current-buffer) (undo-tree-register-data-buffer data)))
       (user-error "Register contains undo-tree state for a different buffer")))
     ;; transfer entries accumulated in `buffer-undo-list' to `buffer-undo-tree'
-    (undo-list-transfer-to-tree)
+    (undo-tree-transfer-list-to-tree)
     ;; restore buffer state corresponding to saved node
     (undo-tree-set (undo-tree-register-data-node data))))
 
@@ -3188,7 +3188,7 @@ without asking for confirmation."
     (user-error "Undo-tree mode not enabled in buffer"))
   (when (eq buffer-undo-list t)
     (user-error "No undo information in this buffer"))
-  (undo-list-transfer-to-tree)
+  (undo-tree-transfer-list-to-tree)
   (when (and buffer-undo-tree (not (eq buffer-undo-tree t)))
     (condition-case nil
 	(undo-tree-kill-visualizer)
