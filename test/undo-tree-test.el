@@ -71,5 +71,42 @@
                    (undo-tree-size buffer-undo-tree)))
     ))
 
+(ert-deftest undo-tree-test/undo-tree-simple-tree ()
+  "Simple undo-tree size tests"
+  (with-temp-buffer
+    (buffer-enable-undo)
+    (undo-tree-mode 1)
+    (insert "1234567890")
+    (undo-boundary)
+    (should (string-equal (buffer-string) "1234567890"))
+
+    (goto-char 5)
+    (insert "abcd")
+    (undo-boundary)
+    (should (string-equal (buffer-string) "1234abcd567890"))
+
+    (goto-char 10)
+    (insert "qwerty")
+    (undo-boundary)
+    (should (string-equal (buffer-string) "1234abcd5qwerty67890"))
+
+    (undo-tree-undo 1)
+    (should (string-equal (buffer-string) "1234abcd567890"))
+
+    (goto-char 0)
+    (insert "0987")
+    (undo-boundary)
+    (should (string-equal (buffer-string) "09871234abcd567890"))
+
+    (undo-tree-undo 1)
+    (should (string-equal (buffer-string) "1234abcd567890"))
+
+    (undo-tree-switch-branch 1)
+    (undo-tree-redo 1)
+    (should (string-equal (buffer-string) "1234abcd5qwerty67890"))
+    (should (equal (undo-tree-calc-tree-size buffer-undo-tree)
+                   (undo-tree-size buffer-undo-tree)))
+    ))
+
 ;; TODO: add test for GCed undo-tree
 ;;; undo-tree-test.el ends here
