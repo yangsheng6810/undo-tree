@@ -1753,7 +1753,7 @@ Comparison is done with `eq'."
    (undo-tree-root tree)))
 
 
-(defun undo-list-pop-changeset (&optional discard-pos)
+(defun undo-tree-list-pop-changeset (&optional discard-pos)
   ;; Pop changeset from `buffer-undo-list'. If DISCARD-POS is non-nil, discard
   ;; any position entries from changeset.
 
@@ -1818,7 +1818,7 @@ Comparison is done with `eq'."
 	      (eq (car buffer-undo-list) 'undo-tree-canary))
     ;; create new node from first changeset in `buffer-undo-list', save old
     ;; `buffer-undo-tree' current node, and make new node the current node
-    (let* ((node (undo-tree-make-node nil (undo-list-pop-changeset)))
+    (let* ((node (undo-tree-make-node nil (undo-tree-list-pop-changeset)))
 	   (splice (undo-tree-current buffer-undo-tree))
 	   (size (undo-tree-list-byte-size (undo-tree-node-undo node)))
 	   (count 1))
@@ -1827,7 +1827,7 @@ Comparison is done with `eq'."
       (while (and buffer-undo-list
 		  (not (eq (cadr buffer-undo-list) 'undo-tree-canary)))
 	(setq node
-	      (undo-tree-grow-backwards node (undo-list-pop-changeset)))
+	      (undo-tree-grow-backwards node (undo-tree-list-pop-changeset)))
 	(incf size (undo-tree-list-byte-size (undo-tree-node-undo node)))
 	(incf count))
       ;; if no undo history has been discarded from `buffer-undo-list' since
@@ -2883,7 +2883,7 @@ changes within the current region."
       ;; elements from node's redo list
       (if preserve-redo
 	  (progn
-	    (undo-list-pop-changeset)
+	    (undo-tree-list-pop-changeset)
 	    (decf (undo-tree-size buffer-undo-tree)
 		  (undo-tree-list-byte-size (undo-tree-node-redo current)))
 	    (setf (undo-tree-node-redo current)
@@ -2896,7 +2896,7 @@ changes within the current region."
 	(decf (undo-tree-size buffer-undo-tree)
 	      (undo-tree-list-byte-size (undo-tree-node-redo current)))
 	(setf (undo-tree-node-redo current)
-	      (undo-list-pop-changeset 'discard-pos))
+	      (undo-tree-list-pop-changeset 'discard-pos))
 	(incf (undo-tree-size buffer-undo-tree)
 	      (undo-tree-list-byte-size (undo-tree-node-redo current))))
 
@@ -3000,7 +3000,7 @@ changes within the current region."
       ;; elements from node's redo list
       (if preserve-undo
 	  (progn
-	    (undo-list-pop-changeset)
+	    (undo-tree-list-pop-changeset)
 	    (decf (undo-tree-size buffer-undo-tree)
 		  (undo-tree-list-byte-size (undo-tree-node-undo current)))
 	    (setf (undo-tree-node-undo current)
@@ -3013,7 +3013,7 @@ changes within the current region."
 	(decf (undo-tree-size buffer-undo-tree)
 	      (undo-tree-list-byte-size (undo-tree-node-undo current)))
 	(setf (undo-tree-node-undo current)
-	      (undo-list-pop-changeset 'discard-pos))
+	      (undo-tree-list-pop-changeset 'discard-pos))
 	(incf (undo-tree-size buffer-undo-tree)
 	      (undo-tree-list-byte-size (undo-tree-node-undo current))))
 
