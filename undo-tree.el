@@ -1878,7 +1878,7 @@ Comparison is done with `eq'."
 
 
 
-(defun undo-list-rebuild-from-tree ()
+(defun undo-tree-rebuild-list-from-tree ()
   "Rebuild `buffer-undo-list' from information in `buffer-undo-tree'."
   (unless (eq buffer-undo-list t)
     (undo-tree-transfer-list-to-tree)
@@ -2755,7 +2755,7 @@ Within the undo-tree visualizer, the following keys are available:
   ;; if disabling `undo-tree-mode', rebuild `buffer-undo-list' from tree so
   ;; Emacs undo can work
   (when (not undo-tree-mode)
-    (undo-list-rebuild-from-tree)
+    (undo-tree-rebuild-list-from-tree)
     (setq buffer-undo-tree nil)))
 
 
