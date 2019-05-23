@@ -1877,6 +1877,15 @@ Comparison is done with `eq'."
     size))
 
 
+(defun undo-tree--sorted-next (node)
+  ;; field NEXT of undo-tree-node is a vector, so we need a mapcar
+  ;; to get a list
+  (sort (mapcar 'identity (undo-tree-node-next node))
+        (lambda (a b)
+          (time-less-p (undo-tree-node-timestamp a)
+                       (undo-tree-node-timestamp b))))
+  )
+
 
 (defun undo-tree-rebuild-list-from-tree ()
   "Rebuild `buffer-undo-list' from information in `buffer-undo-tree'."
@@ -1887,12 +1896,7 @@ Comparison is done with `eq'."
       ;; stack is a list of a list of nodes, to be able to handle
       ;; the children of a node together
       (let ((stack (list (list (undo-tree-root buffer-undo-tree)))))
-        ;; field NEXT of undo-tree-node is a vector, so we need a mapcar
-        ;; to get a list
-	(push (sort (mapcar 'identity (undo-tree-node-next (caar stack)))
-		    (lambda (a b)
-		      (time-less-p (undo-tree-node-timestamp a)
-				   (undo-tree-node-timestamp b))))
+	(push (undo-tree--sorted-next (caar stack))
 	      stack)
 	;; Traverse tree in depth-and-oldest-first order, but add undo records
 	;; on the way down, and redo records on the way up. We will stop before
@@ -1906,28 +1910,25 @@ Comparison is done with `eq'."
                 ;; back to it
                 (not (eq (car (nth 1 stack))
                          (undo-tree-current buffer-undo-tree))))
-          ;; if we have not visited every children of the current node
+          ;; (car stack) is contains the list of unvisited children of current
+          ;; node, i.e. (cadr stack). If it is empty, then we are ready to go up
+          ;; from the current node
 	  (if (car stack)
 	      (progn
 		(setq buffer-undo-list
 		      (append (undo-tree-node-undo (caar stack))
 			      buffer-undo-list))
 		(undo-boundary)
-                ;; field NEXT of undo-tree-node is a vector, so we need a mapcar
-                ;; to get a list
-		(push (sort (mapcar 'identity
-				    (undo-tree-node-next (caar stack)))
-			    (lambda (a b)
-			      (time-less-p (undo-tree-node-timestamp a)
-					   (undo-tree-node-timestamp b))))
+		(push (undo-tree--sorted-next (caar stack))
 		      stack))
             ;; if all children of current node is visited, we need to pop the
-            ;; empty list of children, and go up
+            ;; empty list of children, i.e. (car stack), and go up
 	    (pop stack)
 	    (setq buffer-undo-list
 		  (append (undo-tree-node-redo (caar stack))
 			  buffer-undo-list))
 	    (undo-boundary)
+            ;; pop current node from stack
 	    (pop (car stack))))))))
 
 
