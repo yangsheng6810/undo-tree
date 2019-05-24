@@ -3876,9 +3876,11 @@ signaling an error if file is not found."
   ;; if it's the CURRENT node and/or has an associated REGISTER.
   (if relative
       ;; relative time
-      (let ((time (floor (float-time
-			  (time-subtract (current-time) timestamp))))
-	    n)
+      (let* ((time-original (float-time
+                             (time-subtract (current-time) timestamp)))
+             (time (floor time-original))
+             (time-ms (% (floor (* time-original 1000)) 1000))
+	     n)
 	(setq time
 	      ;; years
 	      (if (> (setq n (/ time 315360000)) 0)
@@ -3895,8 +3897,12 @@ signaling an error if file is not found."
 		    ;; mins
 		    (if (> (setq n (/ time 60)) 0)
 			(format "-%dm" n)
-		      ;; secs
-		      (format "-%ds" (% time 60)))))))
+                      ;; seconds
+                      (if (> time 0)
+                          ;; secs
+		          (format "-%ds" (% time 60))
+                        ;; milliseconds
+                        (format "-%dms" time-ms)))))))
 	(setq time (concat
 		    (if current "*" " ")
 		    time
