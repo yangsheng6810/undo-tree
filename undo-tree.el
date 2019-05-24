@@ -2863,12 +2863,7 @@ changes within the current region."
 
       ;; remove any GC'd elements from node's undo list
       (setq current (undo-tree-current buffer-undo-tree))
-      (decf (undo-tree-size buffer-undo-tree)
-	    (undo-tree-list-byte-size (undo-tree-node-undo current)))
-      (setf (undo-tree-node-undo current)
-	    (undo-tree-list-clean-GCd-elts (undo-tree-node-undo current)))
-      (incf (undo-tree-size buffer-undo-tree)
-	    (undo-tree-list-byte-size (undo-tree-node-undo current)))
+      (undo-tree--update-undo current)
       ;; undo one record from undo tree
       (when undo-in-region
 	(setq pos (set-marker (make-marker) (point)))
@@ -2882,21 +2877,11 @@ changes within the current region."
       (if preserve-redo
 	  (progn
 	    (undo-tree-list-pop-changeset)
-	    (decf (undo-tree-size buffer-undo-tree)
-		  (undo-tree-list-byte-size (undo-tree-node-redo current)))
-	    (setf (undo-tree-node-redo current)
-		  (undo-tree-list-clean-GCd-elts (undo-tree-node-redo current)))
-	    (incf (undo-tree-size buffer-undo-tree)
-		  (undo-tree-list-byte-size (undo-tree-node-redo current))))
+            (undo-tree--update-redo current))
 	;; otherwise, record redo entries that `primitive-undo' has added to
 	;; `buffer-undo-list' in current node's redo record, replacing
 	;; existing entry if one already exists
-	(decf (undo-tree-size buffer-undo-tree)
-	      (undo-tree-list-byte-size (undo-tree-node-redo current)))
-	(setf (undo-tree-node-redo current)
-	      (undo-tree-list-pop-changeset 'discard-pos))
-	(incf (undo-tree-size buffer-undo-tree)
-	      (undo-tree-list-byte-size (undo-tree-node-redo current))))
+        (undo-tree--update-redo current (undo-tree-list-pop-changeset 'discard-pos)))
 
       ;; rewind current node and update timestamp
       (setf (undo-tree-current buffer-undo-tree)
@@ -2978,12 +2963,8 @@ changes within the current region."
 	    current (nth (undo-tree-node-branch current)
 			 (undo-tree-node-next current)))
       ;; remove any GC'd elements from node's redo list
-      (decf (undo-tree-size buffer-undo-tree)
-	    (undo-tree-list-byte-size (undo-tree-node-redo current)))
-      (setf (undo-tree-node-redo current)
-	    (undo-tree-list-clean-GCd-elts (undo-tree-node-redo current)))
-      (incf (undo-tree-size buffer-undo-tree)
-	    (undo-tree-list-byte-size (undo-tree-node-redo current)))
+      (undo-tree--update-redo current)
+
       ;; redo one record from undo tree
       (when redo-in-region
 	(setq pos (set-marker (make-marker) (point)))
@@ -2999,21 +2980,13 @@ changes within the current region."
       (if preserve-undo
 	  (progn
 	    (undo-tree-list-pop-changeset)
-	    (decf (undo-tree-size buffer-undo-tree)
-		  (undo-tree-list-byte-size (undo-tree-node-undo current)))
-	    (setf (undo-tree-node-undo current)
-		  (undo-tree-list-clean-GCd-elts (undo-tree-node-undo current)))
-	    (incf (undo-tree-size buffer-undo-tree)
-		  (undo-tree-list-byte-size (undo-tree-node-undo current))))
+            (undo-tree--update-undo current))
 	;; otherwise, record undo entries that `primitive-undo' has added to
 	;; `buffer-undo-list' in current node's undo record, replacing
 	;; existing entry if one already exists
-	(decf (undo-tree-size buffer-undo-tree)
-	      (undo-tree-list-byte-size (undo-tree-node-undo current)))
-	(setf (undo-tree-node-undo current)
-	      (undo-tree-list-pop-changeset 'discard-pos))
-	(incf (undo-tree-size buffer-undo-tree)
-	      (undo-tree-list-byte-size (undo-tree-node-undo current))))
+        (undo-tree--update-undo
+         current
+         (undo-tree-list-pop-changeset 'discard-pos)))
 
       ;; update timestamp
       (unless preserve-timestamps
@@ -4529,6 +4502,27 @@ specifies `saved', and a negative prefix argument specifies
     (when win
       (balance-windows)
       (shrink-window-if-larger-than-buffer win))))
+
+
+(defun undo-tree--update-undo (node &optional val)
+  (setq val (or val
+                (undo-tree-node-undo node)))
+  (decf (undo-tree-size buffer-undo-tree)
+        (undo-tree-list-byte-size (undo-tree-node-undo node)))
+  (setf (undo-tree-node-undo node)
+        (undo-tree-list-clean-GCd-elts val))
+  (incf (undo-tree-size buffer-undo-tree)
+        (undo-tree-list-byte-size (undo-tree-node-undo node))))
+
+(defun undo-tree--update-redo (node &optional val)
+  (setq val (or val
+                (undo-tree-node-redo node)))
+  (decf (undo-tree-size buffer-undo-tree)
+        (undo-tree-list-byte-size (undo-tree-node-redo node)))
+  (setf (undo-tree-node-redo node)
+        (undo-tree-list-clean-GCd-elts val))
+  (incf (undo-tree-size buffer-undo-tree)
+        (undo-tree-list-byte-size (undo-tree-node-redo node))))
 
 (defun undo-tree/dump-for-debug ()
   "Dump current information for undo-tree"
