@@ -1941,10 +1941,7 @@ Comparison is done with `eq'."
   ;; Return oldest leaf node below NODE.
   (while (undo-tree-node-next node)
     (setq node
-          (car (sort (mapcar 'identity (undo-tree-node-next node))
-                     (lambda (a b)
-                       (time-less-p (undo-tree-node-timestamp a)
-                                    (undo-tree-node-timestamp b)))))))
+          (car (undo-tree--sorted-next node))))
   node)
 
 
