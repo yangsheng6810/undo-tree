@@ -1292,7 +1292,7 @@ in visualizer."
   (undo-tree
    :named
    (:constructor nil)
-   (:constructor make-undo-tree
+   (:constructor undo-tree-make-tree
                  (&aux
                   (root (undo-tree-make-node nil nil))
                   (current root)
@@ -1809,7 +1809,7 @@ Comparison is done with `eq'."
   (assert (not (eq buffer-undo-tree t)))
 
   ;; if `buffer-undo-tree' is empty, create initial undo-tree
-  (when (null buffer-undo-tree) (setq buffer-undo-tree (make-undo-tree)))
+  (when (null buffer-undo-tree) (setq buffer-undo-tree (undo-tree-make-tree)))
   ;; make sure there's a canary at end of `buffer-undo-list'
   (when (null buffer-undo-list)
     (setq buffer-undo-list '(nil undo-tree-canary)))
