@@ -3146,6 +3146,93 @@ directory for the backup doesn't exist, it is created."
     (concat (file-name-directory name) "." (file-name-nondirectory name)
 	    ".~undo-tree~")))
 
+(defun undo-tree-node--replace-references (node hashtable)
+  (let ((n (undo-tree-node-make-copy node))
+        (indexed-previous (gethash node hashtable))
+        (indexed-next (mapcar (lambda (x)
+                                (gethash x hashtable))
+                              (undo-tree-node-next node))))
+    (setf (undo-tree-node-previous n) indexed-previous
+          (undo-tree-node-next n) indexed-next)
+    n))
+
+(defun undo-tree-node--print (node)
+  (let ((n (undo-tree-node-make-copy node)))
+    (when (undo-tree-node-previous n)
+      (setf (undo-tree-node-previous n) "#"))
+    (when (undo-tree-node-next n)
+      (setf (undo-tree-node-next n)
+            (mapcar (lambda (x) "#") (undo-tree-node-next node))))
+    (format "Node %S" n)))
+
+(defun undo-tree--print-recursive (tree)
+  (let ((index 0)
+        (node-hash-pool (make-hash-table :test 'equal)))
+    (puthash nil -1 node-hash-pool)
+
+    ;; calculate hash
+    (undo-tree-mapc
+     (lambda (x)
+       (when x
+         (puthash x index node-hash-pool)
+         (setq index (1+ index))))
+     (undo-tree-root tree))
+
+    (with-temp-buffer
+      ;; print index for root
+      (prin1 (gethash (undo-tree-root tree) node-hash-pool) (current-buffer))
+      (terpri (current-buffer))
+      ;; print index for current node
+      (prin1 (gethash (undo-tree-current tree) node-hash-pool) (current-buffer))
+      (terpri (current-buffer))
+
+      (undo-tree-mapc
+       (lambda (x)
+         (when x
+           (prin1 (gethash x node-hash-pool) (current-buffer))
+           (prin1 (undo-tree-node--replace-references x node-hash-pool) (current-buffer))
+           (terpri (current-buffer))))
+       (undo-tree-root tree))
+      (buffer-string))))
+
+(defun undo-tree--load-recursive ()
+  (let ((l (list))
+        (hash-table (make-hash-table :test 'equal))
+        (tree (undo-tree-make-tree))
+        hash
+        root-index current-index node-index
+        node
+        (count 0))
+    (setq hash (read (current-buffer))
+          root-index (read (current-buffer))
+          current-index (read (current-buffer)))
+    (message "After reading root index")
+    (message "Hash is %S, root-index is %S, current-index is %S"
+             hash root-index current-index)
+    (while (not (eobp))
+      (setq node-index (read (current-buffer))
+            node (read (current-buffer)))
+      (puthash node-index node hash-table)
+      (message "Finish count %d, with node %S" count node)
+      (push node-index l)
+      (incf count)
+      )
+    (cl-loop for index in l do
+             (puthash index (undo-tree-node--replace-references
+                             (gethash index hash-table) hash-table)
+                      hash-table))
+    (setf (undo-tree-root tree) (gethash root-index hash-table)
+          (undo-tree-count tree) count
+          (undo-tree-current tree) (gethash current-index hash-table)
+          (undo-tree-size tree) (undo-tree-calc-tree-size tree))))
+
+(defun undo-tree--save-tree-stable (tree buff filename)
+  (undo-tree-clean-GCd-elts tree)
+  (with-auto-compression-mode
+    (with-temp-buffer
+      (insert (format  "%S\n" (sha1 buff)))
+      (insert (undo-tree--print-recursive tree))
+      (write-region nil nil filename))))
 
 (defun undo-tree-save-history (&optional filename overwrite)
   "Store undo-tree history to file.
@@ -3202,7 +3289,12 @@ without asking for confirmation."
 	  (undo-tree-recircle buffer-undo-tree))
 	))))
 
-
+(defun undo-tree-load-history--helper (filename)
+  (with-auto-compression-mode
+    (with-temp-buffer
+      (insert-file-contents filename)
+      (goto-char (point-min))
+      (undo-tree--load-recursive))))
 
 (defun undo-tree-load-history (&optional filename noerror)
   "Load undo-tree history from file.
