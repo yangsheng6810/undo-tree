@@ -1595,7 +1595,8 @@ that are already part of `buffer-undo-tree'."
     (while stack
       (setq n (pop stack))
       (funcall --undo-tree-mapc-function-- n)
-      (setq stack (append (undo-tree-node-next n) stack)))))
+      (when (undo-tree-node-next n)
+        (setq stack (append (undo-tree-node-next n) stack))))))
 
 
 (defmacro undo-tree-num-branches ()
