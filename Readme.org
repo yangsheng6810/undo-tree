@@ -48,6 +48,8 @@
    - [X] Add function to calculate the size of the undo-tree.
    - [X] Add function to print out the whole undo-tree in a clearer way.
 ** TODO Add a fully functioning logging system to help reproduce bugs
+** TODO ~undo-tree-visualizer-mode~ uses ~buffer-undo-tree~ directly
+   Intuitively, ~buffer-undo-tree~ should be like ~buffer-undo-list~, and is only related to a buffer. However, in ~undo-tree-visualizer-mode~, ~buffer-undo-tree~ is pointed to the buffer it corresponds to. This can be a source of bugs.
 * Known/unfixed bugs
 ** "No further undo information"
    Need a logging system to help reproduce and recover. Not happening recently to me though.
