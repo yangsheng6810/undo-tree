@@ -1,0 +1,62 @@
+* Undo-tree
+  Treat undo history as a tree. This package by Toby S. Cubitt has enjoyed great popularity among the world of emacsers. 
+** Why a another version?
+   Though Toby S. Cubitt claims never having issue with the "No further undo information" error in =undo-tree=, this infamous error haunts almost every emacer I know of. Furthermore, the development and maintenance has slowed down since 2014, or release 0.6.5. According to git history and Toby's homepage, only four commits were made after that, among which only one commit by Barry O'Reilly actually improves the code (there is another commit that adds warnings to interactive functions called outside undo-tree-mode, but it is not included in the latest release 0.6.6).
+   
+** Why not submit a patch to Toby S. Cubitt?
+   I first thought of submitting small bug-fix patches. Then I realized the complexity and the amount of update I would like to see. It would be much easier if I can fork and refactor as wish, and fix the bugs as I come across. I will submit patches to Toby S. Cubitt when the code is in a stable shape with facilities to help me and other users to reproduce bugs.
+   
+** What is the target of this fork?
+   1. Stay close to the original undo-tree
+   2. Mainly bug fixes
+   3. Add tests to make it robust enough
+      
+** What might change (break compatibility with the original =undo-tree=)?
+   1. The format of the saved undo history. The current history save is just a hash of the file when the undo history was saved, concatenating with a flatted ~buffer-undo-tree~ (printed with ~prin1~). This
+      
+** What will not be fixed?
+   Since I do not use the ~undo-in-region~ feature, and this has been known as a source of instability for undo-tree. I am not going to look into it, at least not in the near future.
+   
+* Progress and Plan
+** DONE Clean up to make the byte compiler happy
+** DONE Migrate from legacy =cl= to =cl-lib=
+** DONE Clean up namespace
+** DONE Scan for infinite loops and possible source of hanging
+*** DONE Fix incorrect loop in ~undo-list-clean-GCd-elts
+** TODO Fix tree-size calculation
+   The tree-size maintaining part seems buggy. The size of an undo-tree is not always the same as the value maintained in the data-structure.
+   - [X] Fixed cons size: on 32-bit emacs, the size of a cons is 8, but on 64-bit emacs, it is 16.
+   - [X] The size of undo-list is not calculated the same as in C source.
+   - [X] Fix size calculation when a marker is garbage collected.
+   - [ ] Mysterious mismatch of real size and maintained size. Need logging facility to recover the reason.
+** TODO Fix save/load history
+   - [X] Add function to clean out markers that have been garbage collected, call it before saving and after restoring history.
+   - [ ] Decide on a new format of saving undo-tree. The current way of saving is almost impossible to debug when errors occur. Try to avoid references in the saved data structure.
+   - [ ] Implement the new form
+   - [ ] Add an option to save a copy of the current file in the undo-tree history, so that modifications from other editors will not ruin the whole history.
+   - [ ] Understand markers and what is their behavior after being loaded.
+** TODO Fix history discard
+   - [X] Clean up garbage collected markers before actually discarding history.
+   - [ ] Find a better way of deciding which node to discard.
+** TODO Performance improvements
+   - [X] Write new version to find the common ancestor of two nodes. Current version goes all the way to the root.
+   - [ ] Avoid frequent undoing to get diff.
+** TODO Update tree visualizer
+   - [X] Add milliseconds to timestamp strings.
+   - [ ] Find a way of switch between showing diff to parrent node and showing diff to child.
+** TODO Debugging and testing facilities
+   - [X] Add function to calculate the size of the undo-tree.
+   - [X] Add function to print out the whole undo-tree in a clearer way.
+** TODO Add a fully functioning logging system to help reproduce bugs
+* Known/unfixed bugs
+** "No further undo information"
+   Need a logging system to help reproduce and recover. Not happening recently to me though.
+** "Error reading undo-tree history from ..."
+   Need a new format of saving instead of the "hash + serialization of undo-tree" format. Happens often to me, this will be the priority.
+** Mismatch of real size of a tree and the maintained size
+   Happens occasionally for me, but also needs a logging system to monitor the offending action.
+** Conflict with =multiple-cursors= and =iedit=
+   Observed this once or twice. Will fix after proper reproduction facility is ready.
+** ~undo-in-region~
+   Won't fix.
+
