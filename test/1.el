@@ -753,10 +753,11 @@
 
 
 ;;; Code:
-(require 'diff)
-;; DONE: replace cl with cl-lib, and clean up
+
+;; TODO: replace cl with cl-lib, and clean up
 ;; maybe not now, according to https://www.emacswiki.org/emacs/CommonLispForEmacs
 ;; (eval-when-compile (require 'cl))
+(require 'diff)
 (require 'cl-lib)
 
 ;; default is nil
@@ -776,12 +777,6 @@
            (when (>= debug-level undo-tree--debug)
              (apply #'message FORMAT_STRING ARGS)))
           (t (apply #'message FORMAT_STRING ARGS)))))
-
-(unless (fboundp 'incf)
-  (defalias 'incf #'cl-incf))
-
-(unless (fboundp 'decf)
-  (defalias 'decf #'cl-decf))
 
 
 ;;; =====================================================================
@@ -1386,7 +1381,7 @@ in visualizer."
        (undo-tree-region-data-redo-end r))))
 
 
-(gv-define-setter undo-tree-node-undo-beginning (val node)
+(defsetf undo-tree-node-undo-beginning (node) (val)
   `(let ((r (plist-get (undo-tree-node-meta-data ,node) :region)))
      (unless (undo-tree-region-data-p r)
        (setf (undo-tree-node-meta-data ,node)
@@ -1394,7 +1389,7 @@ in visualizer."
 			(setq r (undo-tree-make-region-data)))))
      (setf (undo-tree-region-data-undo-beginning r) ,val)))
 
-(gv-define-setter undo-tree-node-undo-end (val node)
+(defsetf undo-tree-node-undo-end (node) (val)
   `(let ((r (plist-get (undo-tree-node-meta-data ,node) :region)))
      (unless (undo-tree-region-data-p r)
        (setf (undo-tree-node-meta-data ,node)
@@ -1402,7 +1397,7 @@ in visualizer."
 			(setq r (undo-tree-make-region-data)))))
      (setf (undo-tree-region-data-undo-end r) ,val)))
 
-(gv-define-setter undo-tree-node-redo-beginning (val node)
+(defsetf undo-tree-node-redo-beginning (node) (val)
   `(let ((r (plist-get (undo-tree-node-meta-data ,node) :region)))
      (unless (undo-tree-region-data-p r)
        (setf (undo-tree-node-meta-data ,node)
@@ -1410,7 +1405,7 @@ in visualizer."
 			(setq r (undo-tree-make-region-data)))))
      (setf (undo-tree-region-data-redo-beginning r) ,val)))
 
-(gv-define-setter undo-tree-node-redo-end (val node)
+(defsetf undo-tree-node-redo-end (node) (val)
   `(let ((r (plist-get (undo-tree-node-meta-data ,node) :region)))
      (unless (undo-tree-region-data-p r)
        (setf (undo-tree-node-meta-data ,node)
@@ -1464,7 +1459,7 @@ in visualizer."
        (undo-tree-visualizer-data-marker v))))
 
 
-(gv-define-setter undo-tree-node-lwidth (val node)
+(defsetf undo-tree-node-lwidth (node) (val)
   `(let ((v (plist-get (undo-tree-node-meta-data ,node) :visualizer)))
      (unless (undo-tree-visualizer-data-p v)
        (setf (undo-tree-node-meta-data ,node)
@@ -1472,7 +1467,7 @@ in visualizer."
 			(setq v (undo-tree-make-visualizer-data)))))
      (setf (undo-tree-visualizer-data-lwidth v) ,val)))
 
-(gv-define-setter undo-tree-node-cwidth (val node)
+(defsetf undo-tree-node-cwidth (node) (val)
   `(let ((v (plist-get (undo-tree-node-meta-data ,node) :visualizer)))
      (unless (undo-tree-visualizer-data-p v)
        (setf (undo-tree-node-meta-data ,node)
@@ -1480,7 +1475,7 @@ in visualizer."
 			(setq v (undo-tree-make-visualizer-data)))))
      (setf (undo-tree-visualizer-data-cwidth v) ,val)))
 
-(gv-define-setter undo-tree-node-rwidth (val node)
+(defsetf undo-tree-node-rwidth (node) (val)
   `(let ((v (plist-get (undo-tree-node-meta-data ,node) :visualizer)))
      (unless (undo-tree-visualizer-data-p v)
        (setf (undo-tree-node-meta-data ,node)
@@ -1488,7 +1483,7 @@ in visualizer."
 			(setq v (undo-tree-make-visualizer-data)))))
      (setf (undo-tree-visualizer-data-rwidth v) ,val)))
 
-(gv-define-setter undo-tree-node-marker (val node)
+(defsetf undo-tree-node-marker (node) (val)
   `(let ((v (plist-get (undo-tree-node-meta-data ,node) :visualizer)))
      (unless (undo-tree-visualizer-data-p v)
        (setf (undo-tree-node-meta-data ,node)
@@ -1518,7 +1513,7 @@ in visualizer."
 (defmacro undo-tree-node-register (node)
   `(plist-get (undo-tree-node-meta-data ,node) :register))
 
-(gv-define-setter undo-tree-node-register (val node)
+(defsetf undo-tree-node-register (node) (val)
   `(setf (undo-tree-node-meta-data ,node)
 	 (plist-put (undo-tree-node-meta-data ,node) :register ,val)))
 
@@ -1846,7 +1841,7 @@ Comparison is done with `eq'."
 
   ;; `undo-tree-transfer-list-to-tree' should never be called when undo is disabled
   ;; (i.e. `buffer-undo-tree' is t)
-  (cl-assert (not (eq buffer-undo-tree t)))
+  (assert (not (eq buffer-undo-tree t)))
 
   ;; if `buffer-undo-tree' is empty, create initial undo-tree
   (when (null buffer-undo-tree) (setq buffer-undo-tree (undo-tree-make-tree)))

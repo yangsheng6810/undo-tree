@@ -161,5 +161,42 @@
        (4 "1234567890")
        (5 "")))))
 
+(ert-deftest undo-tree-test/save-load ()
+  "Simple undo works for insertion and deletion"
+  (let* ((undo-tree-file "1.undo-tree")
+         (text-file "1.el")
+         (tree (undo-tree-load-history--helper undo-tree-file))
+         (file1 (make-temp-file "undo-tree--test"))
+         (file2 (make-temp-file "undo-tree--test"))
+         str1 str2)
+    ;; The test is done as follows: we first load a saved undo-tree, and save it
+    ;; in FILE1. Then we load the tree in FILE1, and save it in FILE2. The final
+    ;; test is done by comparing the undo-tree in UNDO-TREE-FILE and FILE2. The
+    ;; reason for another layer is because of the way Emacs prints a string with
+    ;; text property. For example, the following is a string "t"
+    ;;
+    ;;   #("t" 0 1 (fontified t face font-lock-string-face))
+    ;;
+    ;; But after printing it with PRIN1, it will be
+    ;;
+    ;;   #("t" 0 1 (face font-lock-string-face fontified t))
+    ;;
+    ;; Things still seem to work, but we need another round of load and save to
+    ;; get the original print.
+    ;; TODO: find the real cause of this weird behavior
+
+    (find-file text-file)
+    (undo-tree--save-tree-stable tree (current-buffer) file1)
+    (setq tree (undo-tree-load-history--helper file1))
+    (undo-tree--save-tree-stable tree (current-buffer) file2)
+    (find-file undo-tree-file)
+    (setq str1 (buffer-string))
+    (find-file file2)
+    (setq str2 (buffer-string))
+    (should (string-equal str1 str2))
+    ;; (ignore-errors
+    ;;   (delete-file filename))
+    ))
+
 ;; TODO: add test for GCed undo-tree
 ;;; undo-tree-test.el ends here
