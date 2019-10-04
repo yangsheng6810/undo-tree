@@ -758,6 +758,7 @@
 ;; maybe not now, according to https://www.emacswiki.org/emacs/CommonLispForEmacs
 ;; (eval-when-compile (require 'cl))
 (require 'cl-lib)
+(require 'dash)
 
 ;; default is nil
 ;; nil:      no debug info
@@ -1696,63 +1697,6 @@ Comparison is done with `eq'."
 	elt)
     elt))
 
-(defun undo-tree--list-clean-markers (tree undo-list)
-  ;; Remove markers from undo-list
-  ;; (undo-tree/debug-message 20 "undo-list size is %d before cleaning" (undo-tree-list-byte-size undo-list))
-  ;; (undo-tree/debug-message 20 "undo-tree size is %d before cleaning" (undo-tree-size buffer-undo-tree))
-  (undo-tree/debug-message 20 "undo-list before cleaning: %S" undo-list)
-  (while (or (undo-list-marker-elt-p (car undo-list))
-             (undo-list-GCd-marker-elt-p (car undo-list)))
-    (undo-tree/debug-message 10 "undo-list find marker: %S" (car undo-list))
-    (setq undo-list (cdr undo-list)))
-  (let* ((p undo-list))
-    (while (cdr p)
-      (while (and (cadr p)
-                  (or (undo-list-marker-elt-p (cadr p))
-                      (undo-list-GCd-marker-elt-p (cadr p))))
-        (undo-tree/debug-message 10 "undo-list find marker: %S" (cadr p))
-        ;; (decf (undo-tree-size buffer-undo-tree)
-        ;;       (* 2 undo-tree-cons-size))
-	(setcdr p (cddr p)))
-      (setq p (cdr p))))
-
-  (undo-tree/debug-message 20 "undo-list after cleaning %S" undo-list)
-  ;; (undo-tree/debug-message 20 "undo-list size is %d after cleaning" (undo-tree-list-byte-size undo-list))
-  ;; (undo-tree/debug-message 20 "undo-tree size is %d after cleaning" (undo-tree-size buffer-undo-tree))
-  undo-list)
-
-(defun undo-tree-list-clean-GCd-elts (tree undo-list)
-  ;; Remove object id's from UNDO-LIST that refer to elements that have been
-  ;; garbage-collected. UNDO-LIST is modified by side-effect.
-  ;; (undo-tree/debug-message 20 "undo-list size is %d before cleaning" (undo-tree-list-byte-size undo-list))
-  ;; (undo-tree/debug-message 20 "undo-tree size is %d before cleaning" (undo-tree-size buffer-undo-tree))
-  (undo-tree/debug-message 20 "undo-list before cleaning: %S" undo-list)
-  (while (undo-list-GCd-marker-elt-p (car undo-list))
-    (undo-tree/debug-message 10 "undo-list find marker: %S" (car undo-list))
-    (unless (gethash (caar undo-list)
-		     (undo-tree-object-pool tree))
-      (undo-tree/debug-message 20 "marker %S is removed" (caar undo-list))
-      ;; (decf (undo-tree-size buffer-undo-tree)
-      ;;       (* 2 undo-tree-cons-size))
-      (setq undo-list (cdr undo-list))))
-  (let* ((p undo-list))
-    (while (cdr p)
-      (while (and (cadr p)
-                  (undo-list-GCd-marker-elt-p (cadr p))
-                  (or (undo-tree/debug-message 10 "undo-list find marker: %S" (car undo-list))
-                      t)
-		  (null (gethash (car (cadr p))
-				 (undo-tree-object-pool tree))))
-        (undo-tree/debug-message 20 "marker %S is removed" (cadr p))
-        ;; (decf (undo-tree-size buffer-undo-tree)
-        ;;       (* 2 undo-tree-cons-size))
-	(setcdr p (cddr p)))
-      (setq p (cdr p))))
-
-  (undo-tree/debug-message 20 "undo-list after cleaning %S" undo-list)
-  ;; (undo-tree/debug-message 20 "undo-list size is %d after cleaning" (undo-tree-list-byte-size undo-list))
-  ;; (undo-tree/debug-message 20 "undo-tree size is %d after cleaning" (undo-tree-size buffer-undo-tree))
-  undo-list)
 
 (defun undo-tree-calc-tree-size (undo-tree)
   (let ((stack (list (undo-tree-root undo-tree)))
@@ -4656,30 +4600,40 @@ specifies `saved', and a negative prefix argument specifies
       (balance-windows)
       (shrink-window-if-larger-than-buffer win))))
 
+(defun undo-tree--marker-filter (elt tree &optional gc-only)
+  "Filter to report marker to remove. Default return t when ELT is a marker in undo-tree TREE. When GC-ONLY is t, only return t for GCed markers"
+    (and (or (undo-list-marker-elt-p elt)
+             (undo-list-GCd-marker-elt-p elt))
+         (or (null gc-only)
+             (gethash (car elt) (undo-tree-object-pool tree)))))
 
 (defun undo-tree--update-undo (tree node &optional val)
-  (setq val (or val
-                (undo-tree-node-undo node)))
-  (decf (undo-tree-size tree)
-        (undo-tree-list-byte-size (undo-tree-node-undo node)))
-   (setf (undo-tree-node-undo node)
-        (undo-tree--list-clean-markers tree val)
-        ;; (undo-tree-list-clean-GCd-elts tree val)
-        )
-  (incf (undo-tree-size tree)
-        (undo-tree-list-byte-size (undo-tree-node-undo node))))
+  "Clean up undo of NODE in undo-tree TREE. When VAL is non-nil,
+replace the undo of NODE with VAL"
+  (let ((filter (lambda (elt)
+                 (undo-tree--marker-filter elt tree))))
+    (setq val (or val
+                  (undo-tree-node-undo node)))
+    (decf (undo-tree-size tree)
+          (undo-tree-list-byte-size (undo-tree-node-undo node)))
+    (setf (undo-tree-node-undo node)
+          (-remove filter val))
+    (incf (undo-tree-size tree)
+          (undo-tree-list-byte-size (undo-tree-node-undo node)))))
 
 (defun undo-tree--update-redo (tree node &optional val)
-  (setq val (or val
-                (undo-tree-node-redo node)))
-  (decf (undo-tree-size tree)
-        (undo-tree-list-byte-size (undo-tree-node-redo node)))
-  (setf (undo-tree-node-redo node)
-        (undo-tree--list-clean-markers tree val)
-        ;; (undo-tree-list-clean-GCd-elts tree val)
-        )
-  (incf (undo-tree-size tree)
-        (undo-tree-list-byte-size (undo-tree-node-redo node))))
+  "Clean up redo of NODE in undo-tree TREE. When VAL is non-nil,
+replace the redo of NODE with VAL"
+  (let ((filter (lambda (elt)
+                 (undo-tree--marker-filter elt tree))))
+    (setq val (or val
+                  (undo-tree-node-redo node)))
+    (decf (undo-tree-size tree)
+          (undo-tree-list-byte-size (undo-tree-node-redo node)))
+    (setf (undo-tree-node-redo node)
+          (-remove filter val))
+    (incf (undo-tree-size tree)
+          (undo-tree-list-byte-size (undo-tree-node-redo node)))))
 
 (defun undo-tree/dump-for-debug ()
   "Dump current information for undo-tree"
