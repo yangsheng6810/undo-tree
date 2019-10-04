@@ -162,7 +162,8 @@
        (5 "")))))
 
 (ert-deftest undo-tree-test/save-load ()
-  "Simple undo works for insertion and deletion"
+  "Test if the loaded undo-tree is the same as the saved one, by
+storing the undo-tree just loaded"
   (let* ((undo-tree-file "1.undo-tree")
          (text-file "1.el")
          (tree (undo-tree-load-history--helper undo-tree-file))
@@ -172,18 +173,20 @@
     ;; The test is done as follows: we first load a saved undo-tree, and save it
     ;; in FILE1. Then we load the tree in FILE1, and save it in FILE2. The final
     ;; test is done by comparing the undo-tree in UNDO-TREE-FILE and FILE2. The
-    ;; reason for another layer is because of the way Emacs prints a string with
-    ;; text property. For example, the following is a string "t"
+    ;; second round is a simple trick to deal with strings with text property.
+    ;; For example, the following is a string "t" with fontified as t and face
+    ;; as font-lock-string-face.
     ;;
     ;;   #("t" 0 1 (fontified t face font-lock-string-face))
     ;;
-    ;; But after printing it with PRIN1, it will be
+    ;; After printing it with PRIN1, it will be
     ;;
     ;;   #("t" 0 1 (face font-lock-string-face fontified t))
     ;;
-    ;; Things still seem to work, but we need another round of load and save to
-    ;; get the original print.
-    ;; TODO: find the real cause of this weird behavior
+    ;; This is equivalent, since the format is `(key1 value1 key2 value2 ...)'.
+    ;; But this causes trouble for equal test. As a simple workaround, we add a
+    ;; second round. It is possible to implement a customize function for more
+    ;; intelligent equality check, but let's delay it.
 
     (find-file text-file)
     (undo-tree--save-tree-stable tree (current-buffer) file1)
