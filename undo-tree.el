@@ -3185,39 +3185,6 @@ directory for the backup doesn't exist, it is created."
        (undo-tree-root tree))
       (buffer-string))))
 
-(defun undo-tree--load-recursive ()
-  (let ((l (list))
-        (hash-table (make-hash-table :test 'equal))
-        (tree (undo-tree-make-tree))
-        hash
-        count
-        root-index current-index
-        node-index node)
-    (setq hash (read (current-buffer))
-          root-index (read (current-buffer))
-          current-index (read (current-buffer))
-          count (read (current-buffer)))
-    (undo-tree/debug-message 20 "After reading root index")
-    (undo-tree/debug-message 20 "Hash is %S, root-index is %S, current-index is %S, %S nodes in total"
-             hash root-index current-index count)
-    (setf (undo-tree-count tree) count)
-    (while (> count 0)
-      (setq node-index (read (current-buffer))
-            node (read (current-buffer)))
-      (puthash node-index node hash-table)
-      (undo-tree/debug-message 20 "Finish count %d, with node %S" count node)
-      (push node-index l)
-      (decf count))
-    (undo-tree/debug-message 20 "All nodes finished")
-    (cl-loop for index in l do
-             (puthash index (undo-tree-node--replace-references
-                             (gethash index hash-table) hash-table)
-                      hash-table))
-    (setf (undo-tree-root tree) (gethash root-index hash-table)
-          (undo-tree-current tree) (gethash current-index hash-table)
-          (undo-tree-size tree) (undo-tree-calc-tree-size tree))
-    tree))
-
 
 (defun undo-tree--save-tree-helper (filename)
   (interactive)
@@ -3286,12 +3253,114 @@ without asking for confirmation."
 	  (undo-tree-recircle buffer-undo-tree))
 	))))
 
-(defun undo-tree-load-history--helper (filename)
-  (with-auto-compression-mode
-    (with-temp-buffer
-      (insert-file-contents filename)
-      (goto-char (point-min))
-      (undo-tree--load-recursive))))
+(defun undo-tree--load-history-new (filename noerror)
+  "Load undo-tree from FILENAME, new format.
+
+The saved undo-tree start with the hashed value of the buffer,
+then followed by the undo-tree printed by
+
+(undo-tree--load-recursive)
+
+If optional argument NOERROR is non-nil, return nil instead of
+signaling an error if file is not found."
+  (let ((buff (current-buffer))
+        (l (list))
+        (hash-table (make-hash-table :test 'equal))
+        (tree (undo-tree-make-tree))
+        hash count
+        root-index current-index
+        node-index node err)
+    (with-auto-compression-mode
+      (with-temp-buffer
+        (insert-file-contents filename)
+        (goto-char (point-min))
+        (condition-case err
+            (progn
+              (setq hash (read (current-buffer))
+                    root-index (read (current-buffer))
+                    current-index (read (current-buffer))
+                    count (read (current-buffer)))
+              (undo-tree/debug-message 20 "After reading root index")
+              (undo-tree/debug-message
+               20 "Hash is %S, root-index is %S, current-index is %S, %S nodes in total"
+               hash root-index current-index count)
+              (unless (string= (sha1 buff) hash)
+                (undo-tree/debug-message 20 "After reading root index")
+                (kill-buffer nil)
+                (funcall (if noerror 'message 'user-error)
+                         "Buffer has been modified; could not load undo-tree history")
+                (throw 'load-error nil))
+              (setf (undo-tree-count tree) count)
+              (while (> count 0)
+                (setq node-index (read (current-buffer))
+                      node (read (current-buffer)))
+                (puthash node-index node hash-table)
+                (undo-tree/debug-message 20 "Finish count %d, with node %S" count node)
+                (push node-index l)
+                (decf count))
+              (undo-tree/debug-message 20 "All nodes finished")
+              (cl-loop for index in l do
+                       (puthash index (undo-tree-node--replace-references
+                                       (gethash index hash-table) hash-table)
+                                hash-table))
+              (setf (undo-tree-root tree) (gethash root-index hash-table)
+                    (undo-tree-current tree) (gethash current-index hash-table)
+                    (undo-tree-size tree) (undo-tree-calc-tree-size tree)))
+          (error
+           (kill-buffer nil)
+           (funcall (if noerror 'message 'user-error)
+                    "Error reading undo-tree history from \"%s\"" filename)
+           (setq tree nil)))
+        tree))))
+
+(defun undo-tree--load-history-old (filename noerror)
+  "Load undo-tree from FILENAME, old format.
+
+The saved undo-tree start with the hashed value of the buffer,
+then followed by the undo-tree printed by
+
+(let ((print-circle t)) (prin1 tree (current-buffer)))
+
+Note in the tree here, we have already removed reference from a
+child to its parent. This removes most of the circular
+references, with one exception: the current node.
+
+If optional argument NOERROR is non-nil, return nil instead of
+signaling an error if file is not found."
+  (let (buff hash tree)
+    (setq buff (current-buffer))
+    (with-auto-compression-mode
+      (with-temp-buffer
+        (insert-file-contents filename)
+        (goto-char (point-min))
+        (condition-case nil
+            (setq hash (read (current-buffer)))
+          (error
+           (kill-buffer nil)
+           (funcall (if noerror 'message 'user-error)
+                    "Error reading undo-tree history from \"%s\"" filename)
+           (throw 'load-error nil)))
+        (unless (string= (sha1 buff) hash)
+          (kill-buffer nil)
+          (funcall (if noerror 'message 'user-error)
+                   "Buffer has been modified; could not load undo-tree history")
+          (throw 'load-error nil))
+        (condition-case nil
+            (setq tree (read (current-buffer)))
+          (error
+           (kill-buffer nil)
+           (funcall (if noerror 'message 'error)
+                    "Error reading undo-tree history from \"%s\"" filename)
+           (throw 'load-error nil)))
+        (kill-buffer nil)))
+    ;; initialise empty undo-tree object pool
+    (setf (undo-tree-object-pool tree)
+          (make-hash-table :test 'eq :weakness 'value))
+    ;; restore circular undo-tree data structure
+    (undo-tree-recircle tree)
+    (setq buffer-undo-tree tree)
+    (undo-tree-clean-GCd-elts buffer-undo-tree)))
+
 
 (defun undo-tree-load-history (&optional filename noerror)
   "Load undo-tree history from file.
@@ -3319,39 +3388,7 @@ signaling an error if file is not found."
 	  (throw 'load-error nil)
 	(error "File \"%s\" does not exist; could not load undo-tree history"
 	       filename)))
-    (let (buff hash tree)
-      (setq buff (current-buffer))
-      (with-auto-compression-mode
-	(with-temp-buffer
-	  (insert-file-contents filename)
-	  (goto-char (point-min))
-	  (condition-case nil
-	      (setq hash (read (current-buffer)))
-	    (error
-	     (kill-buffer nil)
-	     (funcall (if noerror 'message 'user-error)
-		      "Error reading undo-tree history from \"%s\"" filename)
-	     (throw 'load-error nil)))
-	  (unless (string= (sha1 buff) hash)
-	    (kill-buffer nil)
-	    (funcall (if noerror 'message 'user-error)
-		     "Buffer has been modified; could not load undo-tree history")
-	    (throw 'load-error nil))
-	  (condition-case nil
-	      (setq tree (read (current-buffer)))
-	    (error
-	     (kill-buffer nil)
-	     (funcall (if noerror 'message 'error)
-		      "Error reading undo-tree history from \"%s\"" filename)
-	     (throw 'load-error nil)))
-	  (kill-buffer nil)))
-      ;; initialise empty undo-tree object pool
-      (setf (undo-tree-object-pool tree)
-	    (make-hash-table :test 'eq :weakness 'value))
-      ;; restore circular undo-tree data structure
-      (undo-tree-recircle tree)
-      (setq buffer-undo-tree tree)
-      (undo-tree-clean-GCd-elts buffer-undo-tree))))
+    (undo-tree--load-history-old filename noerror)))
 
 
 

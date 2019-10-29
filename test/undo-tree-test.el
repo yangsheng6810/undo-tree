@@ -175,7 +175,7 @@
 storing the undo-tree just loaded"
   (let* ((undo-tree-file (f-join undo-tree/test-resource-dir "1.undo-tree"))
          (text-file (f-join undo-tree/test-resource-dir "1.el"))
-         (tree (undo-tree-load-history--helper undo-tree-file))
+         tree
          (file1 (make-temp-file "undo-tree--test"))
          (file2 (make-temp-file "undo-tree--test"))
          str1 str2)
@@ -198,8 +198,9 @@ storing the undo-tree just loaded"
     ;; intelligent equality check, but let's delay it.
 
     (find-file text-file)
+    (setq tree (undo-tree--load-history-new undo-tree-file t))
     (undo-tree--save-tree-stable tree (current-buffer) file1)
-    (setq tree (undo-tree-load-history--helper file1))
+    (setq tree (undo-tree--load-history-new file1 t))
     (undo-tree--save-tree-stable tree (current-buffer) file2)
     (find-file undo-tree-file)
     (setq str1 (buffer-string))
