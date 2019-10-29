@@ -1,7 +1,16 @@
 ;;; undo-tree-test.el --- Tests for undo-tree
 (require 'cl-lib)
 (require 'dash)
-(load-file "undo-tree.el")
+
+;; Prepare directories
+(defvar undo-tree/source-dir (f-parent (f-dirname (f-this-file))))
+(defvar undo-tree/test-dir (f-join undo-tree/source-dir "test"))
+(defvar undo-tree/test-resource-dir (f-join undo-tree/test-dir "resources"))
+
+;; Load main file and helper
+(load-file (f-join undo-tree/source-dir "undo-tree.el"))
+(load-file (f-join undo-tree/test-dir "test-helper.el"))
+
 (ert-deftest undo-tree-test/undo ()
   "Simple undo works for insertion and deletion"
   (with-temp-buffer
@@ -164,8 +173,8 @@
 (ert-deftest undo-tree-test/save-load ()
   "Test if the loaded undo-tree is the same as the saved one, by
 storing the undo-tree just loaded"
-  (let* ((undo-tree-file "1.undo-tree")
-         (text-file "1.el")
+  (let* ((undo-tree-file (f-join undo-tree/test-resource-dir "1.undo-tree"))
+         (text-file (f-join undo-tree/test-resource-dir "1.el"))
          (tree (undo-tree-load-history--helper undo-tree-file))
          (file1 (make-temp-file "undo-tree--test"))
          (file2 (make-temp-file "undo-tree--test"))
