@@ -1,7 +1,16 @@
 ;;; undo-tree-test.el --- Tests for undo-tree
 (require 'cl-lib)
 (require 'dash)
-(load-file "undo-tree.el")
+
+;; Prepare directories
+(defvar undo-tree/source-dir (f-parent (f-dirname (f-this-file))))
+(defvar undo-tree/test-dir (f-join undo-tree/source-dir "test"))
+(defvar undo-tree/test-resource-dir (f-join undo-tree/test-dir "resources"))
+
+;; Load main file and helper
+(load-file (f-join undo-tree/source-dir "undo-tree.el"))
+(load-file (f-join undo-tree/test-dir "test-helper.el"))
+
 (ert-deftest undo-tree-test/undo ()
   "Simple undo works for insertion and deletion"
   (with-temp-buffer
@@ -160,6 +169,46 @@
        (3 "1234abcd567890")
        (4 "1234567890")
        (5 "")))))
+
+(ert-deftest undo-tree-test/save-load ()
+  "Test if the loaded undo-tree is the same as the saved one, by
+storing the undo-tree just loaded"
+  (let* ((undo-tree-file (f-join undo-tree/test-resource-dir "1.undo-tree"))
+         (text-file (f-join undo-tree/test-resource-dir "1.el"))
+         (tree (undo-tree-load-history--helper undo-tree-file))
+         (file1 (make-temp-file "undo-tree--test"))
+         (file2 (make-temp-file "undo-tree--test"))
+         str1 str2)
+    ;; The test is done as follows: we first load a saved undo-tree, and save it
+    ;; in FILE1. Then we load the tree in FILE1, and save it in FILE2. The final
+    ;; test is done by comparing the undo-tree in UNDO-TREE-FILE and FILE2. The
+    ;; second round is a simple trick to deal with strings with text property.
+    ;; For example, the following is a string "t" with fontified as t and face
+    ;; as font-lock-string-face.
+    ;;
+    ;;   #("t" 0 1 (fontified t face font-lock-string-face))
+    ;;
+    ;; After printing it with PRIN1, it will be
+    ;;
+    ;;   #("t" 0 1 (face font-lock-string-face fontified t))
+    ;;
+    ;; This is equivalent, since the format is `(key1 value1 key2 value2 ...)'.
+    ;; But this causes trouble for equal test. As a simple workaround, we add a
+    ;; second round. It is possible to implement a customize function for more
+    ;; intelligent equality check, but let's delay it.
+
+    (find-file text-file)
+    (undo-tree--save-tree-stable tree (current-buffer) file1)
+    (setq tree (undo-tree-load-history--helper file1))
+    (undo-tree--save-tree-stable tree (current-buffer) file2)
+    (find-file undo-tree-file)
+    (setq str1 (buffer-string))
+    (find-file file2)
+    (setq str2 (buffer-string))
+    (should (string-equal str1 str2))
+    ;; (ignore-errors
+    ;;   (delete-file filename))
+    ))
 
 ;; TODO: add test for GCed undo-tree
 ;;; undo-tree-test.el ends here
