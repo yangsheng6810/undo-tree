@@ -753,11 +753,10 @@
 
 
 ;;; Code:
-
-;; TODO: replace cl with cl-lib, and clean up
+(require 'diff)
+;; DONE: replace cl with cl-lib, and clean up
 ;; maybe not now, according to https://www.emacswiki.org/emacs/CommonLispForEmacs
 ;; (eval-when-compile (require 'cl))
-(require 'diff)
 (require 'cl-lib)
 
 ;; default is nil
@@ -777,6 +776,12 @@
            (when (>= debug-level undo-tree--debug)
              (apply #'message FORMAT_STRING ARGS)))
           (t (apply #'message FORMAT_STRING ARGS)))))
+
+(unless (fboundp 'incf)
+  (defalias 'incf #'cl-incf))
+
+(unless (fboundp 'decf)
+  (defalias 'decf #'cl-decf))
 
 
 ;;; =====================================================================
