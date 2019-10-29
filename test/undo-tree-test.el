@@ -1,4 +1,6 @@
 ;;; undo-tree-test.el --- Tests for undo-tree
+(require 'cl-lib)
+(require 'dash)
 (load-file "undo-tree.el")
 (ert-deftest undo-tree-test/undo ()
   "Simple undo works for insertion and deletion"
@@ -11,9 +13,9 @@
     (insert "abcd")
     (undo-boundary)
     (should (string-equal "1234abcd567890" (buffer-string)))
-    (undo-tree-undo)
+    (undo-tree-undo 1)
     (should (string-equal "1234567890" (buffer-string)))
-    (undo-tree-redo)
+    (undo-tree-redo 1)
     (should (string-equal "1234abcd567890" (buffer-string)))
     ))
 
@@ -29,9 +31,9 @@
     (undo-boundary)
     (undo-tree-transfer-list-to-tree)
     (undo-tree-verify-size)
-    (undo-tree-undo)
+    (undo-tree-undo 1)
     (undo-tree-verify-size)
-    (undo-tree-redo)
+    (undo-tree-redo 1)
     (undo-tree-verify-size)
     ))
 
