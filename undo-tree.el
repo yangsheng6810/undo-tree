@@ -3275,7 +3275,7 @@ without asking for confirmation."
 The saved undo-tree start with the hashed value of the buffer,
 then followed by the undo-tree printed by
 
-(undo-tree--load-recursive)
+(undo-tree--print-recursive)
 
 If optional argument NOERROR is non-nil, return nil instead of
 signaling an error if file is not found."
