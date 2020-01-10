@@ -3197,26 +3197,25 @@ directory for the backup doesn't exist, it is created."
       (buffer-string))))
 
 
-(defun undo-tree--save-history-new (buff tree filename)
-  "Save history using the new format.
+(defun undo-tree--save-tree-helper (filename)
+  (interactive)
+  (undo-tree--save-tree-stable buffer-undo-tree (current-buffer) filename))
 
-Save undo-tree TREE of buffer BUFF into file FILENAME."
+(defun undo-tree--save-tree-stable (tree buff filename)
+  (undo-tree-clean-GCd-elts tree)
   (with-auto-compression-mode
     (with-temp-buffer
       (insert (format  "%S\n" (sha1 buff)))
       (insert (undo-tree--print-recursive tree))
       (write-region nil nil filename))))
 
-(defun undo-tree--save-history-old (buff tree filename)
-  "Save history using the old format.
-
-Save undo-tree TREE of buffer BUFF into file FILENAME."
+(defun undo-tree--save-history-old (filename)
   (unwind-protect
       (progn
 	;; transform undo-tree into non-circular structure, and make
 	;; temporary copy
-	(undo-tree-decircle tree)
-	(setq tree (copy-undo-tree tree))
+	(undo-tree-decircle buffer-undo-tree)
+	(setq tree (copy-undo-tree buffer-undo-tree))
 	;; discard undo-tree object pool before saving
 	(setf (undo-tree-object-pool tree) nil)
 	;; print undo-tree to file
@@ -3232,7 +3231,7 @@ Save undo-tree TREE of buffer BUFF into file FILENAME."
 	    (let ((print-circle t)) (prin1 tree (current-buffer)))
 	    (write-region nil nil filename))))
     ;; restore circular undo-tree data structure
-    (undo-tree-recircle tree)))
+    (undo-tree-recircle buffer-undo-tree)))
 
 (defun undo-tree-save-history (&optional filename overwrite)
   "Store undo-tree history to file.
@@ -3253,7 +3252,8 @@ without asking for confirmation."
     (condition-case nil
 	(undo-tree-kill-visualizer)
       (error (undo-tree-clear-visualizer-data buffer-undo-tree)))
-    (let ((buff (current-buffer)))
+    (let ((buff (current-buffer))
+	  tree)
       ;; get filename
       (unless filename
 	(setq filename
@@ -3264,10 +3264,7 @@ without asking for confirmation."
 		overwrite
 		(yes-or-no-p (format "Overwrite \"%s\"? " filename)))
         (undo-tree-clean-GCd-elts buffer-undo-tree)
-        (if undo-tree-use-new-history-format
-            (undo-tree--save-history-new buff buffer-undo-tree filename)
-	  (undo-tree--save-history-old buff buffer-undo-tree filename))
-        ))))
+	(undo-tree--save-history-old filename)))))
 
 (defun undo-tree--load-history-new (filename noerror)
   "Load undo-tree from FILENAME, new format.
@@ -3279,7 +3276,6 @@ then followed by the undo-tree printed by
 
 If optional argument NOERROR is non-nil, return nil instead of
 signaling an error if file is not found."
-  (message "In here, filename is %s" filename)
   (let ((buff (current-buffer))
         (l (list))
         (hash-table (make-hash-table :test 'equal))
@@ -3376,7 +3372,8 @@ signaling an error if file is not found."
           (make-hash-table :test 'eq :weakness 'value))
     ;; restore circular undo-tree data structure
     (undo-tree-recircle tree)
-    tree))
+    (setq buffer-undo-tree tree)
+    (undo-tree-clean-GCd-elts buffer-undo-tree)))
 
 
 (defun undo-tree-load-history (&optional filename noerror)
@@ -3405,15 +3402,12 @@ signaling an error if file is not found."
 	  (throw 'load-error nil)
 	(error "File \"%s\" does not exist; could not load undo-tree history"
 	       filename)))
-    (let ((tree
-           (or
-            (when undo-tree-use-new-history-format
-              (catch 'load-error
-                (undo-tree--load-history-new filename noerror)))
-            (undo-tree--load-history-old filename noerror))))
-      (when tree
-        (setq buffer-undo-tree tree)
-        (undo-tree-clean-GCd-elts buffer-undo-tree)))))
+    (unless
+        (when undo-tree-use-new-format
+          (catch 'load-error
+            (undo-tree--load-history-new filename noeeor)))
+      (undo-tree--load-history-old filename noerror))))
+
 
 
 ;; Versions of save/load functions for use in hooks
