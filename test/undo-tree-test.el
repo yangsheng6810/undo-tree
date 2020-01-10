@@ -182,6 +182,7 @@ storing the undo-tree just loaded"
          (undo-tree-use-new-history-format nil))
 
     (find-file text-file)
+    (undo-tree-mode 1)
     (undo-tree-load-history undo-tree-file t)
     (undo-tree-save-history file1 t)
     (undo-tree-load-history file1 t)
@@ -208,6 +209,7 @@ storing the undo-tree just loaded"
          (undo-tree-use-new-history-format t))
 
     (find-file text-file)
+    (undo-tree-mode 1)
     (undo-tree-load-history undo-tree-file t)
     (undo-tree-save-history file1 t)
     (undo-tree-load-history file1 t)
