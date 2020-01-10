@@ -170,6 +170,31 @@
        (4 "1234567890")
        (5 "")))))
 
+(ert-deftest undo-tree-test/save-load-old ()
+  "Test if the loaded undo-tree is the same as the saved one, by
+storing the undo-tree just loaded"
+  (let* ((undo-tree-file (f-join undo-tree/test-resource-dir "old.undo-tree"))
+         (text-file (f-join undo-tree/test-resource-dir "old-save.el"))
+         tree
+         (file1 (make-temp-file "undo-tree--test"))
+         (file2 (make-temp-file "undo-tree--test"))
+         str1 str2
+         (undo-tree-use-new-history-format nil))
+
+    (find-file text-file)
+    (undo-tree-load-history undo-tree-file t)
+    (undo-tree-save-history file1 t)
+    (undo-tree-load-history file1 t)
+    (undo-tree-save-history file2 t)
+    (find-file undo-tree-file)
+    (setq str1 (buffer-string))
+    (find-file file2)
+    (setq str2 (buffer-string))
+    (should (string-equal str1 str2))
+    ;; (ignore-errors
+    ;;   (delete-file filename))
+    ))
+
 (ert-deftest undo-tree-test/save-load ()
   "Test if the loaded undo-tree is the same as the saved one, by
 storing the undo-tree just loaded"
