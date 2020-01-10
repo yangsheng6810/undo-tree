@@ -31,8 +31,9 @@
    - [ ] Mysterious mismatch of real size and maintained size. Need logging facility to recover the reason.
 ** TODO Fix save/load history
    - [X] Add function to clean out markers that have been garbage collected, call it before saving and after restoring history.
-   - [ ] Decide on a new format of saving undo-tree. The current way of saving is almost impossible to debug when errors occur. Try to avoid references in the saved data structure.
-   - [ ] Implement the new form
+   - [X] Decide on a new format of saving undo-tree. The current way of saving is almost impossible to debug when errors occur. Try to avoid references in the saved data structure.
+   - [X] Implement the new form
+   - [X] Add test for both old and new save/load
    - [ ] Add an option to save a copy of the current file in the undo-tree history, so that modifications from other editors will not ruin the whole history.
    - [ ] Understand markers and what is their behavior after being loaded.
 ** TODO Fix history discard
@@ -52,9 +53,15 @@
    Intuitively, ~buffer-undo-tree~ should be like ~buffer-undo-list~, and is only related to a buffer. However, in ~undo-tree-visualizer-mode~, ~buffer-undo-tree~ is pointed to the buffer it corresponds to. This can be a source of bugs.
 * Known/unfixed bugs
 ** "No further undo information"
-   Need a logging system to help reproduce and recover. Not happening recently to me though.
+   Need a logging system to help reproduce and recover. Not happening recently to me though. Possible reasons:
+   - Text properties :: text properties are not really necessary for undo-tree, and can use up a lot of space. This can avoid truncating the undo history and corrupting the tree. Code borrowed from doom emacs.
+   - History truncating :: small limit of gc threshold may make things worse. [[https://github.com/syl20bnr/spacemacs/issues/12110][ref]]
 ** "Error reading undo-tree history from ..."
    Need a new format of saving instead of the "hash + serialization of undo-tree" format. Happens often to me, this will be the priority.
+   
+   Possible reason(s):
+   - Markers :: when printed using ~prin1~, and loaded using ~read~, things can go wrong.
+   - External edits :: when the file has been externally edited, no undo-history is possible. One way to solve it is to add a copy of the file while saving.
 ** Mismatch of real size of a tree and the maintained size
    Happens occasionally for me, but also needs a logging system to monitor the offending action.
 ** Conflict with =multiple-cursors= and =iedit=
