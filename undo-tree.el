@@ -925,6 +925,17 @@ within the current region."
   :type 'boolean)
 
 
+(defcustom undo-tree-use-new-history-format t
+  "When non-nil, use new undo-tree history format
+
+The old format saves a hash and a single sexp, which can only be
+loaded as a whole part. If a single node contains offending
+objectes, e.g. some certain marker, then the whole loading will
+fail, and no history can be restored."
+  :group 'undo-tree
+  :type 'boolean)
+
+
 (defcustom undo-tree-auto-save-history nil
   "When non-nil, `undo-tree-mode' will save undo history to file
 when a buffer is saved to file.
@@ -3310,7 +3321,8 @@ signaling an error if file is not found."
            (kill-buffer nil)
            (funcall (if noerror 'message 'user-error)
                     "Error reading undo-tree history from \"%s\"" filename)
-           (setq tree nil)))
+           (setq tree nil)
+           (throw 'load-error nil)))
         tree))))
 
 (defun undo-tree--load-history-old (filename noerror)
@@ -3388,7 +3400,11 @@ signaling an error if file is not found."
 	  (throw 'load-error nil)
 	(error "File \"%s\" does not exist; could not load undo-tree history"
 	       filename)))
-    (undo-tree--load-history-old filename noerror)))
+    (unless
+        (when undo-tree-use-new-history-format
+          (catch 'load-error
+            (undo-tree--load-history-new filename noeeor)))
+      (undo-tree--load-history-old filename noerror))))
 
 
 
