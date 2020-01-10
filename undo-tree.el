@@ -3209,6 +3209,30 @@ directory for the backup doesn't exist, it is created."
       (insert (undo-tree--print-recursive tree))
       (write-region nil nil filename))))
 
+(defun undo-tree--save-history-old (buff filename)
+  (unwind-protect
+      (progn
+	;; transform undo-tree into non-circular structure, and make
+	;; temporary copy
+	(undo-tree-decircle buffer-undo-tree)
+	(setq tree (copy-undo-tree buffer-undo-tree))
+	;; discard undo-tree object pool before saving
+	(setf (undo-tree-object-pool tree) nil)
+	;; print undo-tree to file
+	;; NOTE: We use `with-temp-buffer' instead of `with-temp-file'
+	;;       to allow `auto-compression-mode' to take effect, in
+	;;       case user has overridden or advised the default
+	;;       `undo-tree-make-history-save-file-name' to add a
+	;;       compressed file extension.
+	(with-auto-compression-mode
+	  (with-temp-buffer
+	    (prin1 (sha1 buff) (current-buffer))
+	    (terpri (current-buffer))
+	    (let ((print-circle t)) (prin1 tree (current-buffer)))
+	    (write-region nil nil filename))))
+    ;; restore circular undo-tree data structure
+    (undo-tree-recircle buffer-undo-tree)))
+
 (defun undo-tree-save-history (&optional filename overwrite)
   "Store undo-tree history to file.
 
@@ -3240,29 +3264,7 @@ without asking for confirmation."
 		overwrite
 		(yes-or-no-p (format "Overwrite \"%s\"? " filename)))
         (undo-tree-clean-GCd-elts buffer-undo-tree)
-	(unwind-protect
-	    (progn
-	      ;; transform undo-tree into non-circular structure, and make
-	      ;; temporary copy
-	      (undo-tree-decircle buffer-undo-tree)
-	      (setq tree (copy-undo-tree buffer-undo-tree))
-	      ;; discard undo-tree object pool before saving
-	      (setf (undo-tree-object-pool tree) nil)
-	      ;; print undo-tree to file
-	      ;; NOTE: We use `with-temp-buffer' instead of `with-temp-file'
-	      ;;       to allow `auto-compression-mode' to take effect, in
-	      ;;       case user has overridden or advised the default
-	      ;;       `undo-tree-make-history-save-file-name' to add a
-	      ;;       compressed file extension.
-	      (with-auto-compression-mode
-		(with-temp-buffer
-		  (prin1 (sha1 buff) (current-buffer))
-		  (terpri (current-buffer))
-		  (let ((print-circle t)) (prin1 tree (current-buffer)))
-		  (write-region nil nil filename))))
-	  ;; restore circular undo-tree data structure
-	  (undo-tree-recircle buffer-undo-tree))
-	))))
+	(undo-tree--save-history-old buff filename)))))
 
 (defun undo-tree--load-history-new (filename noerror)
   "Load undo-tree from FILENAME, new format.
